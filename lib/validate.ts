@@ -113,14 +113,14 @@ export const isMinor = (age: string) => {
   return n !== null && n < 18;
 };
 
-export type ConsentErrors = Partial<Record<keyof Consent | "signature", FieldError>>;
+export type ConsentErrors = Partial<Record<keyof Consent, FieldError>>;
 
-export function validateConsent(c: Consent, hasSignature: boolean): ConsentErrors {
+/** All three statements are required. The kiosk sets them together from its single consent checkbox. */
+export function validateConsent(c: Consent): ConsentErrors {
   const e: ConsentErrors = {};
   if (!c.training) e.training = { key: "required" };
   if (!c.notDiagnosis) e.notDiagnosis = { key: "required" };
   if (!c.ageOrGuardian) e.ageOrGuardian = { key: "required" };
-  if (!hasSignature) e.signature = { key: "required" };
   return e;
 }
 
@@ -141,10 +141,7 @@ const str = (v: unknown, max: number): string | null => (typeof v === "string" &
 const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : null);
 
 /** Returns the parsed payload, or the name of the first bad field (never its value). */
-export function parsePayload(
-  raw: unknown,
-  hasSignature: boolean,
-): { ok: true; value: SubmissionPayload } | { ok: false; field: string } {
+export function parsePayload(raw: unknown): { ok: true; value: SubmissionPayload } | { ok: false; field: string } {
   if (typeof raw !== "object" || raw === null) return { ok: false, field: "body" };
   const r = raw as Record<string, unknown>;
   if (!isUuid(r.submissionKey)) return { ok: false, field: "submissionKey" };
@@ -171,7 +168,7 @@ export function parsePayload(
   };
   for (const [k, v] of Object.entries(consent)) if (v === null) return { ok: false, field: `consent.${k}` };
   const full = consent as SubmissionPayload["consent"];
-  const cErr = validateConsent(full, hasSignature);
+  const cErr = validateConsent(full);
   const firstC = Object.keys(cErr)[0];
   if (firstC) return { ok: false, field: `consent.${firstC}` };
 

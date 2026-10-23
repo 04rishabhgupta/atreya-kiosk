@@ -30,26 +30,31 @@ export default function SuccessScreen() {
       }
     >
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <svg viewBox="0 0 120 120" className="size-40" aria-hidden>
-          <circle className="anim-pop" style={{ transformOrigin: "center", transformBox: "fill-box" }} cx="60" cy="60" r="56" fill="#2F9E5B" />
+        {/* Echoes the welcome contours, now resolved into a single confirmed mark. */}
+        <svg viewBox="0 0 200 200" className="size-32 tall:size-44" aria-hidden>
+          {[92, 78, 64].map((r, i) => (
+            <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="#15201B" strokeOpacity={0.06 + i * 0.05} strokeWidth="1.2" />
+          ))}
+          <circle className="anim-pop" style={{ transformOrigin: "center", transformBox: "fill-box" }} cx="100" cy="100" r="46" fill="#1F7A55" />
           <path
             className="anim-pop"
             style={{ animationDelay: "0.15s", transformOrigin: "center", transformBox: "fill-box" }}
-            d="M36 62l16 16 32-34"
+            d="M80 101l14 14 27-29"
             fill="none"
-            stroke="#fff"
-            strokeWidth="10"
+            stroke="#FFFFFF"
+            strokeWidth="6"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+          <circle cx="165" cy="150" r="6" fill="#E07B28" />
         </svg>
-        <h1 className="mt-6 text-[40px] font-bold text-brand">{t.successTitle}</h1>
-        <p className="mt-3 max-w-xl text-[22px] text-muted">{t.successBody}</p>
-        <div className="mt-8 rounded-3xl border-2 border-accent/50 bg-accent-50 px-8 py-6">
-          <p className="text-[20px] text-muted">{t.refLabel}</p>
-          <p className="mt-1 font-mono text-[44px] font-bold tracking-wider text-ink select-text">{referenceId}</p>
+        <h1 className="t-display mt-6 text-fg tall:mt-8">{t.successTitle}</h1>
+        <p className="t-lead mt-2 max-w-[36ch] text-balance">{t.successBody}</p>
+        <div className="mt-8 w-full max-w-md rounded-2xl border border-hair bg-surface px-8 pt-5 pb-6 shadow-card tall:mt-12 tall:max-w-lg tall:pt-7 tall:pb-8">
+          <p className="t-kicker">{t.refLabel}</p>
+          <p className="mt-2 font-mono text-[32px] font-semibold tracking-[0.06em] text-fg select-text tall:text-[40px]">{referenceId}</p>
         </div>
-        <p className="mt-4 max-w-lg text-[19px] text-muted">{t.refHint}</p>
+        <p className="mt-5 max-w-[38ch] text-[15px] leading-normal text-fg-3 tall:text-[19px]">{t.refHint}</p>
       </div>
     </ScreenLayout>
   );

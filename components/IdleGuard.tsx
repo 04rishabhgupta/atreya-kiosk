@@ -60,8 +60,8 @@ export function IdleGuard({ enabled, onTimeout, t }: { enabled: boolean; onTimeo
         </Button>
       }
     >
-      <p className="text-[22px]">{fmt(t.idleBody, { n: count })}</p>
-      <p className="anim-count mt-4 text-center text-[64px] font-bold text-accent" key={count}>
+      <p>{fmt(t.idleBody, { n: count })}</p>
+      <p className="anim-count mt-5 text-center text-[72px] leading-none font-semibold text-fg tabular-nums" key={count}>
         {count}
       </p>
     </Dialog>

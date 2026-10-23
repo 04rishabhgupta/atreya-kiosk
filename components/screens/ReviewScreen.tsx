@@ -7,22 +7,28 @@ import { hasErrors, validateConsent, validateDetails } from "@/lib/validate";
 import { postSubmission } from "@/lib/submit";
 import { STEPS, useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
-import { IconBack, IconRefresh } from "../ui/icons";
-import { ScreenLayout } from "../ui/ScreenLayout";
+import { IconBack, IconCheck, IconRefresh } from "../ui/icons";
+import { ScreenLayout, Section as Group } from "../ui/ScreenLayout";
 
 function Section({ title, onEdit, editLabel, children }: { title: string; onEdit?: () => void; editLabel: string; children: React.ReactNode }) {
   return (
-    <section className="mb-4 rounded-3xl border-2 border-line bg-card p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[24px] font-bold text-brand">{title}</h2>
-        {onEdit && (
-          <button type="button" onClick={onEdit} className="min-h-14 rounded-xl px-5 font-semibold text-accent active:bg-accent-50">
+    <Group
+      title={title}
+      className="mb-4 tall:mb-6"
+      aside={
+        onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="min-h-12 rounded-lg border border-hair-strong bg-surface px-5 text-[15px] font-semibold text-brand active:bg-surface-2 tall:min-h-14 tall:text-[17px]"
+          >
             {editLabel}
           </button>
-        )}
-      </div>
+        )
+      }
+    >
       {children}
-    </section>
+    </Group>
   );
 }
 
@@ -53,7 +59,7 @@ export default function ReviewScreen() {
     if (sending) return;
     // Edits from Review can invalidate an earlier step (e.g. age now under 18): send them back there.
     if (hasErrors(validateDetails(d))) return go(STEPS.details, true);
-    if (hasErrors(validateConsent(c, !!s.signature)) || !s.consentedAt) return go(STEPS.consent, true);
+    if (hasErrors(validateConsent(c)) || !s.consentedAt) return go(STEPS.consent, true);
     if (SHOTS.some((sh) => !s.captures[sh.id])) return go(STEPS.camera, true);
     dispatch({ type: "submit", patch: { status: "sending", progress: 0, error: null } });
 
@@ -70,7 +76,6 @@ export default function ReviewScreen() {
       const cap = s.captures[sh.id];
       if (cap) form.append(sh.id, cap.blob, sh.fileName);
     }
-    if (s.signature) form.append("signature", s.signature.blob, "consent_signature.png");
     if (ENABLE_VIDEO && s.video) form.append("video", s.video.blob, "face_video");
     form.append("website", honeypot.current?.value ?? "");
 
@@ -122,50 +127,54 @@ export default function ReviewScreen() {
       />
 
       {sending && (
-        <div className="mb-4 h-3 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-surface-3" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           {submit.progress < 1 ? (
-            <div className="h-full origin-left bg-brand transition-transform duration-200" style={{ transform: `scaleX(${submit.progress})` }} />
+            <div className="h-full origin-left bg-mint transition-transform duration-200" style={{ transform: `scaleX(${submit.progress})` }} />
           ) : (
-            <div className="anim-indeterminate h-full w-2/5 bg-accent" />
+            <div className="anim-indeterminate h-full w-2/5 bg-mint" />
           )}
         </div>
       )}
       {errMsg && (
-        <p role="alert" className="mb-4 rounded-2xl border-2 border-bad/40 bg-bad-50 p-4 font-semibold text-bad">
+        <p role="alert" className="mb-4 rounded-xl border border-coral/30 bg-coral/[0.06] px-5 py-4 text-[16px] font-medium text-coral tall:text-[19px]">
           {errMsg}
         </p>
       )}
 
       <Section title={t.secPhotos} editLabel={t.edit} onEdit={canEdit ? () => go(STEPS.camera, true) : undefined}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4 tall:gap-6">
           {SHOTS.map((sh) => (
             <figure key={sh.id} className="text-center">
-              <div className="aspect-[3/4] overflow-hidden rounded-2xl bg-line">
+              <div className="aspect-[3/4] overflow-hidden rounded-xl bg-surface-2">
                 {s.captures[sh.id] && (
                   // Small thumbnails straight from the in-memory Blob.
                   <img src={s.captures[sh.id]!.url} alt="" className="mirror h-full w-full object-cover" decoding="async" />
                 )}
               </div>
-              <figcaption className="mt-1 text-[18px] text-muted">{t.shotNames[sh.id]}</figcaption>
+              <figcaption className="mt-2 text-[14.5px] text-fg-2 tall:text-[17px]">{t.shotNames[sh.id]}</figcaption>
             </figure>
           ))}
         </div>
       </Section>
 
       <Section title={t.secDetails} editLabel={t.edit} onEdit={canEdit ? () => go(STEPS.details, true) : undefined}>
-        <dl className="divide-y divide-line">
+        <dl className="-my-2.5 divide-y divide-hair text-[16px] tall:text-[19px]">
           {rows.map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-4 py-2">
-              <dt className="text-muted">{k.replace(" *", "")}</dt>
-              <dd className="text-right font-semibold break-words">{v || t.notSet}</dd>
+            <div key={k} className="flex justify-between gap-6 py-2.5 tall:py-3.5">
+              <dt className="text-fg-2">{k.replace(" *", "")}</dt>
+              <dd className="text-right font-medium break-words text-fg">{v || t.notSet}</dd>
             </div>
           ))}
         </dl>
       </Section>
 
       <Section title={t.secConsent} editLabel={t.edit} onEdit={canEdit ? () => go(STEPS.consent, true) : undefined}>
-        <p className="font-semibold text-good">✓ {t.consentGiven}</p>
-        {s.signature && <img src={s.signature.url} alt="" className="mt-3 h-20 rounded-xl border border-line bg-card" />}
+        <p className="flex items-center gap-3 text-[16px] font-medium text-fg tall:text-[19px]">
+          <span className="flex size-7 items-center justify-center rounded-full bg-mint/10 text-mint">
+            <IconCheck className="size-4" />
+          </span>
+          {t.consentGiven}
+        </p>
       </Section>
     </ScreenLayout>
   );

@@ -3,10 +3,10 @@ import type { ButtonHTMLAttributes } from "react";
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const styles: Record<Variant, string> = {
-  primary: "bg-brand text-white active:bg-brand-700 disabled:bg-brand/40",
-  secondary: "bg-card text-brand border-2 border-brand/25 active:bg-brand-50 disabled:opacity-50",
-  ghost: "bg-transparent text-brand active:bg-brand-50 disabled:opacity-50",
-  danger: "bg-bad text-white active:opacity-90",
+  primary: "bg-brand text-white shadow-lift active:bg-brand-700 disabled:bg-surface-3 disabled:text-fg-3 disabled:shadow-none",
+  secondary: "border border-hair-strong bg-surface text-fg shadow-card active:bg-surface-2 disabled:opacity-50",
+  ghost: "text-fg-2 active:bg-surface-2 disabled:opacity-50",
+  danger: "bg-coral text-white shadow-lift active:opacity-90",
 };
 
 export function Button({
@@ -18,7 +18,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex min-h-16 items-center justify-center gap-2 rounded-2xl px-6 text-[22px] font-semibold transition-transform duration-100 active:scale-[0.98] disabled:active:scale-100 ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-16 min-w-16 items-center justify-center gap-2.5 rounded-xl px-6 text-[18px] font-semibold transition-colors duration-150 tall:min-h-[72px] tall:min-w-[72px] tall:text-[20px] ${styles[variant]} ${className}`}
       {...rest}
     />
   );

@@ -48,65 +48,56 @@ export const IconArrow = ({ className = "size-12" }: P) => (
   </svg>
 );
 
-// Larger illustrations for the About cards (brand-coloured).
-export const IllustrationFace = ({ className = "size-32" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <circle cx="60" cy="60" r="56" fill="#EDF4EF" />
-    <ellipse cx="60" cy="58" rx="26" ry="33" fill="none" stroke="#1B4332" strokeWidth="4" />
-    <circle cx="50" cy="54" r="3" fill="#1B4332" />
-    <circle cx="70" cy="54" r="3" fill="#1B4332" />
-    <path d="M51 72q9 6 18 0" fill="none" stroke="#1B4332" strokeWidth="3.5" strokeLinecap="round" />
-    <path d="M20 30v-10h10M100 30v-10H90M20 90v10h10M100 90v10H90" fill="none" stroke="#E07B28" strokeWidth="4" strokeLinecap="round" />
+export const IconArrowRight = ({ className = "size-6" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
-export const IllustrationData = ({ className = "size-32" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <circle cx="60" cy="60" r="56" fill="#EDF4EF" />
-    <rect x="30" y="68" width="12" height="22" rx="3" fill="#2D6A4F" />
-    <rect x="48" y="54" width="12" height="36" rx="3" fill="#1B4332" />
-    <rect x="66" y="40" width="12" height="50" rx="3" fill="#E07B28" />
-    <rect x="84" y="30" width="8" height="60" rx="3" fill="#1B4332" opacity=".35" />
-    <path d="M28 52l20-14 18 8 24-18" fill="none" stroke="#1B4332" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+export const IconClock = ({ className = "size-5" }: P) => (
+  <svg {...base} className={className}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
   </svg>
 );
-export const IllustrationNotDx = ({ className = "size-32" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <circle cx="60" cy="60" r="56" fill="#FDF1E6" />
-    <rect x="36" y="26" width="48" height="64" rx="6" fill="#fff" stroke="#1B4332" strokeWidth="4" />
-    <path d="M60 44v20M50 54h20" stroke="#1B4332" strokeWidth="5" strokeLinecap="round" />
-    <path d="M30 96L90 24" stroke="#E07B28" strokeWidth="6" strokeLinecap="round" />
-  </svg>
-);
-export const IllustrationClock = ({ className = "size-32" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <circle cx="60" cy="60" r="56" fill="#EDF4EF" />
-    <circle cx="60" cy="60" r="32" fill="#fff" stroke="#1B4332" strokeWidth="4" />
-    <path d="M60 42v18l12 8" fill="none" stroke="#E07B28" strokeWidth="5" strokeLinecap="round" />
+export const IconChevronDown =({ className = "size-6" }: P) => (
+  <svg {...base} className={className}>
+    <path d="M6 9l6 6 6-6" />
   </svg>
 );
 
-// Do / Don't illustrations: a clear face vs. one with cap, glasses and backlight.
-export const IllustrationDo = ({ className = "h-28 w-28" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <rect width="120" height="120" rx="16" fill="#EDF4EF" />
-    <ellipse cx="60" cy="60" rx="30" ry="38" fill="none" stroke="#2F9E5B" strokeWidth="4" strokeDasharray="6 5" />
-    <ellipse cx="60" cy="60" rx="22" ry="28" fill="#F3D9BF" />
-    <path d="M38 50q2-22 22-22t22 22q-6-12-22-12t-22 12z" fill="#3B2A20" />
-    <circle cx="52" cy="58" r="2.5" fill="#1C2620" />
-    <circle cx="68" cy="58" r="2.5" fill="#1C2620" />
-    <path d="M54 74h12" stroke="#1C2620" strokeWidth="2.5" strokeLinecap="round" />
+/** The atreya.ai mark (matches app/icon.svg): face oval with the accent dot. */
+export const BrandMark = ({ className = "size-9" }: P) => (
+  <svg viewBox="0 0 32 32" className={className} aria-hidden>
+    <rect width="32" height="32" rx="8" fill="#1B4332" />
+    <ellipse cx="16" cy="15.5" rx="7" ry="9" fill="none" stroke="#fff" strokeWidth="2.4" />
+    <circle cx="24.5" cy="24.5" r="3" fill="#E07B28" />
   </svg>
 );
-export const IllustrationDont = ({ className = "h-28 w-28" }: P) => (
-  <svg viewBox="0 0 120 120" className={className} aria-hidden>
-    <rect width="120" height="120" rx="16" fill="#FBECEA" />
-    <circle cx="96" cy="24" r="14" fill="#F6C343" />
-    <ellipse cx="60" cy="64" rx="22" ry="28" fill="#D9BFA6" />
-    <path d="M34 48q4-18 26-18t26 18z" fill="#C0392B" />
-    <path d="M30 48h40" stroke="#C0392B" strokeWidth="5" strokeLinecap="round" />
-    <rect x="44" y="56" width="13" height="9" rx="3" fill="#1C2620" />
-    <rect x="63" y="56" width="13" height="9" rx="3" fill="#1C2620" />
-    <path d="M57 60h6" stroke="#1C2620" strokeWidth="2.5" />
-    <rect x="46" y="72" width="28" height="16" rx="5" fill="#9FB3C8" />
-  </svg>
-);
+
+/**
+ * Head pose for a shot, as a fine line drawing in currentColor (ember arrow shows the turn).
+ * Direction matches the mirrored camera preview and its nudge arrow: "right" = nose towards screen-right.
+ */
+export const PoseGlyph = ({ turn, className = "size-16" }: P & { turn: "none" | "left" | "right" }) => {
+  const d = turn === "right" ? 1 : turn === "left" ? -1 : 0;
+  return (
+    <svg viewBox="0 0 120 120" className={className} fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M22 118c4-22 20-30 38-30s34 8 38 30" strokeOpacity="0.35" strokeWidth="2" />
+      <ellipse cx="60" cy="54" rx={d ? 21 : 23} ry="28" strokeWidth="2.2" />
+      {d === 0 ? (
+        <>
+          <circle cx="52" cy="51" r="2.2" fill="currentColor" stroke="none" />
+          <circle cx="68" cy="51" r="2.2" fill="currentColor" stroke="none" />
+          <path d="M60 54v7M55 68h10" strokeOpacity="0.7" strokeWidth="2" />
+        </>
+      ) : (
+        <>
+          <circle cx={60 + d * 11} cy="51" r="2.2" fill="currentColor" stroke="none" />
+          <path d={`M${60 + d * 19} 47l${d * 6} 11l${-d * 6} 2`} strokeWidth="2" />
+          <path d={`M${60 - d * 7} 49q${-d * 6} 6 0 12`} strokeOpacity="0.5" strokeWidth="2" />
+          <path d={`M${60 - d * 13} 14h${d * 26}m${-d * 6}-6l${d * 6} 6l${-d * 6} 6`} stroke="#EA8A3C" strokeWidth="2.6" />
+        </>
+      )}
+    </svg>
+  );
+};

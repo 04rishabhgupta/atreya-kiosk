@@ -160,16 +160,20 @@ export async function POST(req: Request) {
     if (typeof f === "string") return json({ error: f === "size" ? "too_large" : "invalid", field: s.id }, 400);
     uploads.push({ field: s.id, name: s.fileName, mime: "image/jpeg", file: f });
   }
-  const sig = await checkFile(form.get("signature"), ["image/png"], LIMITS.maxSignatureBytes);
-  if (typeof sig === "string") return json({ error: "invalid", field: "signature" }, 400);
-  uploads.push({ field: "signature", name: "consent_signature.png", mime: "image/png", file: sig });
+  // The kiosk no longer collects a signature (consent 1.1). One sent by a client still on the old page is
+  // validated and stored as before; otherwise the Signature Link column is simply left empty.
+  if (form.get("signature") !== null) {
+    const sig = await checkFile(form.get("signature"), ["image/png"], LIMITS.maxSignatureBytes);
+    if (typeof sig === "string") return json({ error: "invalid", field: "signature" }, 400);
+    uploads.push({ field: "signature", name: "consent_signature.png", mime: "image/png", file: sig });
+  }
   if (ENABLE_VIDEO && form.get("video") !== null) {
     const f = await checkFile(form.get("video"), ["video/webm", "video/mp4"], VIDEO.maxBytes + 200_000);
     if (typeof f === "string") return json({ error: "invalid", field: "video" }, 400);
     uploads.push({ field: "video", name: f.type === "video/mp4" ? "face_video.mp4" : "face_video.webm", mime: f.type, file: f });
   }
 
-  const parsed = parsePayload(data, true);
+  const parsed = parsePayload(data);
   if (!parsed.ok) return json({ error: "invalid", field: parsed.field }, 400);
   const key = parsed.value.submissionKey;
 

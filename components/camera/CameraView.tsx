@@ -1,21 +1,10 @@
 "use client";
 
 import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { AUTO_CAPTURE, CAMERA_CONSTRAINTS, CHECKS } from "@/lib/config";
+import { CAMERA_CONSTRAINTS, CHECKS } from "@/lib/config";
 import type { Strings } from "@/lib/strings";
-import {
-  coverCrop,
-  createFaceDetector,
-  evaluate,
-  FrameAnalyzer,
-  grabStill,
-  ovalFor,
-  toBoxCoords,
-  type FaceResult,
-  type Guidance,
-  type Level,
-  type Metrics,
-} from "./checks";
+import { evaluate, FrameAnalyzer, grabStill, toFaceResult, type DetectorState, type FaceResult, type Guidance, type Level, type Metrics } from "./checks";
+import { loadFaceDetector, type Detector } from "./detector";
 import { FaceOverlay } from "./FaceOverlay";
 
 export type CameraError = "denied" | "missing" | "busy" | "insecure" | "error";
@@ -28,11 +17,15 @@ export interface CameraHandle {
 interface Props {
   ref: Ref<CameraHandle>;
   turn: "none" | "left" | "right";
-  faceCheck: boolean;
-  active: boolean; // false while counting down / reviewing: checks pause, camera stays open
+  active: boolean; // checks run (live + countdown); false while reviewing: checks pause, camera stays open
+  showGuidance: boolean; // the prompt pill (hidden during the countdown, which has its own label)
+  autoCapture: boolean; // may fire onAutoCapture once everything has been good for CHECKS.goodHoldMs
+  goodHint: string; // prompt shown when every check passes
   guide: Strings["guide"];
   onError: (e: CameraError) => void;
   onAutoCapture: () => void;
+  /** Called whenever "every check passes" flips. The screen gates Capture on this. */
+  onReady: (ready: boolean) => void;
 }
 
 function classify(e: unknown): CameraError {
@@ -43,40 +36,84 @@ function classify(e: unknown): CameraError {
   return "error";
 }
 
+const STARTING = { g: "starting" as Guidance, level: "warn" as Level };
+
 /**
  * Live preview + check loop. The loop runs on a timer outside React; it only calls setState
  * when the prompt actually changes, so the component re-renders a few times per shot at most.
  */
-export const CameraView = memo(function CameraView({ ref, turn, faceCheck, active, guide, onError, onAutoCapture }: Props) {
+export const CameraView = memo(function CameraView({
+  ref,
+  turn,
+  active,
+  showGuidance,
+  autoCapture,
+  goodHint,
+  guide,
+  onError,
+  onAutoCapture,
+  onReady,
+}: Props) {
   const video = useRef<HTMLVideoElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [state, setState] = useState<{ g: Guidance; level: Level }>({ g: "starting", level: "bad" });
+  const [state, setState] = useState(STARTING);
 
   // Everything the timer reads lives in refs.
   const live = useRef({
     active,
-    faceCheck,
-    metrics: { brightness: 0, sharpness: 0, motion: 0 } as Metrics,
+    turn,
+    autoCapture,
+    metrics: { frame: 0, face: null } as Metrics,
     face: null as FaceResult | null,
-    detector: undefined as ReturnType<typeof createFaceDetector> | undefined,
+    detector: null as Detector | null,
+    detState: "loading" as DetectorState,
+    ready: false,
     goodSince: 0,
     autoFired: false,
     last: "starting" as Guidance,
     size: { w: 0, h: 0 },
   });
-  const cb = useRef({ onError, onAutoCapture });
-  cb.current = { onError, onAutoCapture };
+  const cb = useRef({ onError, onAutoCapture, onReady });
+  cb.current = { onError, onAutoCapture, onReady };
 
+  // A new shot (or returning from review) starts from scratch: nothing carries over from the last frame.
   useEffect(() => {
     const l = live.current;
     l.active = active;
-    l.faceCheck = faceCheck;
+    l.turn = turn;
     l.goodSince = 0;
     l.autoFired = false;
     l.face = null;
-  }, [active, faceCheck]);
+    l.last = "starting";
+    setState(STARTING);
+    if (l.ready) {
+      l.ready = false;
+      cb.current.onReady(false);
+    }
+  }, [active, turn]);
+
+  // Confirming the checklist arms auto-capture afresh: the participant must then hold still for the full hold time.
+  useEffect(() => {
+    live.current.autoCapture = autoCapture;
+    live.current.goodSince = 0;
+  }, [autoCapture]);
+
+  // The detector is shared and usually already warm (prefetched on the Instructions step).
+  useEffect(() => {
+    let cancelled = false;
+    loadFaceDetector()
+      .then((d) => {
+        if (cancelled) return;
+        live.current.detector = d;
+        live.current.detState = "ready";
+      })
+      .catch(() => !cancelled && (live.current.detState = "failed"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useImperativeHandle(ref, () => ({
     async grab() {
@@ -142,13 +179,11 @@ export const CameraView = memo(function CameraView({ ref, turn, faceCheck, activ
     return () => ro.disconnect();
   }, []);
 
-  // The check loop: ~4 Hz pixels, ~2 Hz face detection, paused when hidden.
+  // The check loop: ~3 Hz face detection, ~4 Hz lighting on the detected face, paused while inactive or hidden.
   useEffect(() => {
     const l = live.current;
     let analyzer: FrameAnalyzer | null = null;
-    let sizedFor = "";
     let lastFace = 0;
-    let faceBusy = false;
     let timer: number | undefined;
 
     const tick = () => {
@@ -156,40 +191,34 @@ export const CameraView = memo(function CameraView({ ref, turn, faceCheck, activ
       const { w, h } = l.size;
       if (!l.active || !v || v.readyState < 2 || !v.videoWidth || !w || !h) return;
       analyzer ??= new FrameAnalyzer();
-      if (sizedFor !== `${w}x${h}`) {
-        analyzer.resize(w, h);
-        sizedFor = `${w}x${h}`;
-      }
-      const crop = coverCrop(v.videoWidth, v.videoHeight, w, h);
-      l.metrics = analyzer.analyze(v, crop);
 
-      if (l.faceCheck) {
-        if (l.detector === undefined) l.detector = createFaceDetector();
-        const now = performance.now();
-        if (l.detector && !faceBusy && now - lastFace >= CHECKS.faceIntervalMs) {
-          faceBusy = true;
-          lastFace = now;
-          l.detector
-            .detect(v)
-            .then((faces) => (l.face = toBoxCoords(faces, crop, w)))
-            .catch(() => {
-              l.detector = null; // exists but unsupported here: skip silently from now on
-              l.face = null;
-            })
-            .finally(() => (faceBusy = false));
+      const now = performance.now();
+      if (l.detector && now - lastFace >= CHECKS.faceIntervalMs) {
+        lastFace = now;
+        try {
+          l.face = toFaceResult(l.detector.detect(v, now));
+        } catch {
+          // A detector that throws can't vouch for anything: block capture rather than skip the check.
+          l.detector = null;
+          l.detState = "failed";
+          l.face = null;
         }
       }
+      // Lighting is judged on the face wherever it is, not on a fixed region of the preview.
+      l.metrics = analyzer.analyze(v, l.face?.count === 1 ? l.face.box : null);
 
-      const faceOn = l.faceCheck && !!l.detector;
-      const r = evaluate(l.metrics, faceOn ? l.face ?? { count: 0, box: null } : null, ovalFor(w, h));
+      const r = evaluate(l.metrics, l.face, l.detState, l.turn);
       if (r.g !== l.last) {
         l.last = r.g;
         setState(r);
       }
+      const ready = r.level === "good";
+      if (ready !== l.ready) {
+        l.ready = ready;
+        cb.current.onReady(ready);
+      }
 
-      // Auto-capture only when a face detector actually confirms a face.
-      if (r.level === "good" && AUTO_CAPTURE && faceOn) {
-        const now = performance.now();
+      if (ready && l.autoCapture) {
         if (!l.goodSince) l.goodSince = now;
         if (!l.autoFired && now - l.goodSince >= CHECKS.goodHoldMs) {
           l.autoFired = true;
@@ -213,21 +242,26 @@ export const CameraView = memo(function CameraView({ ref, turn, faceCheck, activ
     };
   }, []);
 
-  const autoReady = state.level === "good" && AUTO_CAPTURE && faceCheck && live.current.detector;
-  const message = active ? (autoReady ? guide.goodAuto : guide[state.g]) : "";
+  const message = active && showGuidance ? (state.level === "good" ? goodHint : guide[state.g]) : "";
 
+  // The preview is always a dark surface, so the overlay uses fixed on-video colours rather than theme tokens.
   return (
-    <div ref={box} className="relative h-full w-full overflow-hidden bg-ink">
+    <div ref={box} className="relative h-full w-full overflow-hidden bg-black">
       <video ref={video} className="mirror absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />
       {active && <FaceOverlay w={size.w} h={size.h} level={state.level} turn={turn} />}
       {message && (
-        <div className="absolute inset-x-0 bottom-4 flex justify-center px-4">
+        <div className="absolute inset-x-0 bottom-5 flex justify-center px-4">
           <p
             aria-live="polite"
-            className={`rounded-full px-6 py-3 text-center text-[22px] font-semibold text-white ${
-              state.level === "good" ? "bg-good" : state.level === "warn" ? "bg-warn" : "bg-bad"
+            className={`flex max-w-full items-center gap-2.5 rounded-2xl py-2.5 pr-5 pl-4 text-[17px] leading-snug font-medium text-white tall:py-3 tall:text-[21px] ${
+              state.level === "good" ? "bg-[#1F7A55]" : "bg-black/75"
             }`}
           >
+            <span
+              className={`size-2.5 shrink-0 rounded-full ${
+                state.level === "good" ? "bg-white" : state.level === "warn" ? "bg-[#E6B25A]" : "bg-[#F0897D]"
+              }`}
+            />
             {message}
           </p>
         </div>
