@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #faf8f3;
+  --color-card: #ffffff;
+  --color-ink: #1c2620;
+  --color-muted: #56625a;
+  --color-line: #e2ded3;
+  --color-brand: #1b4332;
+  --color-brand-700: #2d6a4f;
+  --color-brand-50: #edf4ef;
+  --color-accent: #e07b28;
+  --color-accent-50: #fdf1e6;
+  --color-bad: #c0392b;
+  --color-bad-50: #fbecea;
+  --color-warn: #c98a12;
+  --color-good: #2f9e5b;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Nirmala UI", sans-serif;
+}
+
+/* ---- Kiosk hardening ---- */
+html {
+  touch-action: pan-x pan-y; /* blocks pinch-zoom; double-tap zoom is off via the viewport */
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 20px;
+  line-height: 1.45;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+input,
+textarea,
+select {
+  -webkit-user-select: text;
+  user-select: text;
+  font-size: 22px;
+}
+img {
+  -webkit-user-drag: none;
+}
+.app-h {
+  height: 100vh;
+  height: 100dvh;
+}
+.mirror {
+  transform: scaleX(-1);
+}
+
+/* ---- Motion: transform + opacity only ---- */
+@keyframes enter {
+  from { opacity: 0; transform: translateY(12px); }
+}
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  70% { opacity: 1; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-oval {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0; transform: scale(1.06); }
+}
+@keyframes nudge-left { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-18px); } }
+@keyframes nudge-right { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(18px); } }
+@keyframes flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes count { from { opacity: 0; transform: scale(1.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+.anim-enter { animation: enter 0.22s ease-out both; }
+.anim-fade { animation: fade 0.2s ease-out both; }
+.anim-pop { animation: pop 0.45s ease-out both; }
+.anim-pulse { animation: pulse-oval 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.anim-nudge-left { animation: nudge-left 1.4s ease-in-out infinite; }
+.anim-nudge-right { animation: nudge-right 1.4s ease-in-out infinite; }
+.anim-flash { animation: flash 0.35s ease-out both; }
+.anim-count { animation: count 0.4s ease-out both; }
+.anim-indeterminate { animation: indeterminate 1.2s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
