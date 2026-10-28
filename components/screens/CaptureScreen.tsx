@@ -157,7 +157,8 @@ export default function CaptureScreen() {
       }
     >
       {/* Shot tabs: the pose glyph makes front / left / right readable at a glance. */}
-      <ol className="mb-4 grid grid-cols-3 gap-3 tall:mb-6 tall:gap-4">
+      {/* Phones: slim name pills. Landscape phones: hidden (the guide panel says "Photo n of 3"). */}
+      <ol className="mb-3 grid grid-cols-3 gap-2 sm:mb-4 sm:gap-3 tall:mb-6 tall:gap-4 compact:hidden cramped:hidden">
         {SHOTS.map((s, i) => {
           const on = i === idx && phase !== "video";
           const done = !!captures[s.id];
@@ -165,19 +166,19 @@ export default function CaptureScreen() {
             <li
               key={s.id}
               aria-current={on ? "step" : undefined}
-              className={`relative flex min-h-15 items-center gap-3 rounded-xl border px-3 transition-colors duration-200 tall:min-h-[76px] tall:px-4 ${
+              className={`relative flex min-h-11 items-center justify-center gap-3 rounded-xl border px-2 transition-colors duration-200 sm:min-h-15 sm:justify-start sm:px-3 tall:min-h-[76px] tall:px-4 ${
                 on ? "border-mint bg-surface text-fg shadow-card ring-1 ring-mint" : done ? "border-hair bg-surface text-fg-2" : "border-hair bg-surface-2 text-fg-3"
               }`}
             >
-              <PoseGlyph turn={s.turn} className="size-10 shrink-0 tall:size-12" />
+              <PoseGlyph turn={s.turn} className="hidden size-10 shrink-0 sm:block tall:size-12" />
               <span className="min-w-0">
-                <span className="block text-[12px] font-semibold tracking-[0.08em] tabular-nums opacity-70 tall:text-[14px]">
+                <span className="hidden text-[12px] font-semibold tracking-[0.08em] tabular-nums opacity-70 sm:block tall:text-[14px]">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="block truncate text-[16px] font-medium tall:text-[19px]">{t.shotNames[s.id]}</span>
+                <span className="block truncate text-[14px] font-medium sm:text-[16px] tall:text-[19px]">{t.shotNames[s.id]}</span>
               </span>
               {done && (
-                <span className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-mint text-white tall:size-6">
+                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-mint text-white sm:top-2 sm:right-2 tall:size-6">
                   <IconCheck className="size-3.5" />
                 </span>
               )}
@@ -187,7 +188,7 @@ export default function CaptureScreen() {
       </ol>
 
       {/* Portrait kiosk: camera and guidance side by side, so instructions stay visible while posing. */}
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-4 sm:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] sm:grid-rows-1 sm:gap-5 tall:gap-6">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 sm:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] sm:grid-rows-1 sm:gap-5 tall:gap-6 compact:gap-3">
         <div className="relative min-h-0 overflow-hidden rounded-2xl bg-black shadow-card">
           <CameraView
             key={camKey}
@@ -206,7 +207,7 @@ export default function CaptureScreen() {
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/25">
               <span
                 key={count}
-                className="anim-count text-[140px] leading-none font-semibold text-ivory tabular-nums [text-shadow:0_4px_20px_rgba(0,0,0,.5)] tall:text-[190px]"
+                className="anim-count text-[96px] leading-none font-semibold text-ivory tabular-nums [text-shadow:0_4px_20px_rgba(0,0,0,.5)] sm:text-[140px] tall:text-[190px] compact:text-[80px]"
               >
                 {count}
               </span>
@@ -255,20 +256,23 @@ function GuidePanel({
   instruction: string;
 }) {
   return (
-    <aside className="flex max-h-[40vh] min-h-0 flex-col overflow-y-auto rounded-2xl border border-hair bg-surface shadow-card sm:max-h-none">
-      <div className="flex items-start gap-4 border-b border-hair bg-surface-2 px-5 py-4 tall:px-7 tall:py-6">
-        <PoseGlyph turn={turn} className="size-12 shrink-0 text-fg tall:size-16" />
+    <aside className="flex min-h-0 flex-col overflow-y-auto rounded-2xl border border-hair bg-surface shadow-card">
+      <div className="flex items-start gap-3 border-b border-hair bg-surface-2 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4 tall:px-7 tall:py-6 compact:gap-3 compact:px-4 compact:py-2.5 cramped:py-2">
+        <PoseGlyph turn={turn} className="size-9 shrink-0 text-fg sm:size-12 tall:size-16 compact:size-9" />
         <div className="min-w-0">
           <p className="t-kicker">{label}</p>
-          <p aria-live="polite" className="mt-1 text-[17px] leading-[1.35] font-semibold text-fg tall:text-[22px]">
+          <p aria-live="polite" className="mt-0.5 text-[15px] leading-[1.35] font-semibold text-fg sm:mt-1 sm:text-[17px] tall:text-[22px] compact:mt-0.5 compact:text-[15px]">
             {instruction}
           </p>
         </div>
       </div>
-      <GuideList good heading={t.camDosHeading} items={t.camDos} />
-      <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
+      {/* Phones (portrait or landscape): Do and Don't side by side, so the camera keeps most of the screen. */}
+      <div className="grid grid-cols-2 sm:block compact:grid">
+        <GuideList good heading={t.camDosHeading} items={t.camDos} />
+        <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
+      </div>
       {/* What actually gates Capture, so a disabled button is never a surprise. */}
-      <section className="mt-auto border-t border-hair bg-surface-2 px-5 py-4 tall:px-7 tall:py-6">
+      <section className="mt-auto hidden border-t border-hair bg-surface-2 px-5 py-4 sm:block tall:px-7 tall:py-6 compact:hidden">
         <h2 className="t-kicker mb-2 tall:mb-3">{t.camAutoHeading}</h2>
         <ul>
           {t.camAuto.map((it) => (
@@ -286,13 +290,13 @@ function GuidePanel({
 function GuideList({ good, heading, items, divider = false }: { good: boolean; heading: string; items: string[]; divider?: boolean }) {
   const Icon = good ? IconCheck : IconX;
   return (
-    <section className={`px-5 py-3.5 tall:px-7 tall:py-6 ${divider ? "border-t border-hair" : ""}`}>
-      <h2 className={`t-kicker mb-2 tall:mb-3 ${good ? "text-mint" : "text-coral"}`}>{heading}</h2>
+    <section className={`px-3 py-3 sm:px-5 sm:py-3.5 tall:px-7 tall:py-6 compact:px-3 compact:py-2.5 cramped:py-2 ${divider ? "border-l border-hair sm:border-t sm:border-l-0 compact:border-t-0 compact:border-l" : ""}`}>
+      <h2 className={`t-kicker mb-1.5 sm:mb-2 tall:mb-3 ${good ? "text-mint" : "text-coral"}`}>{heading}</h2>
       <ul>
         {items.map((it) => (
-          <li key={it} className="flex items-start gap-3 py-1.5 text-[17px] leading-snug text-fg tall:py-3 tall:text-[22px]">
+          <li key={it} className="flex items-start gap-2 py-1 text-[14px] leading-snug text-fg sm:gap-3 sm:py-1.5 sm:text-[17px] tall:py-3 tall:text-[22px] compact:gap-2 compact:py-0.5 compact:text-[14px] cramped:py-0.5 cramped:text-[13.5px]">
             <span
-              className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-full tall:size-7 ${
+              className={`mt-px flex size-5 shrink-0 items-center justify-center rounded-full sm:size-6 tall:size-7 compact:size-5 ${
                 good ? "bg-mint/10 text-mint" : "bg-coral/10 text-coral"
               }`}
             >

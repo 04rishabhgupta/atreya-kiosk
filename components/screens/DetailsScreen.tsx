@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { COLUMN_I, DIABETIC_CATEGORIES, GENDERS } from "@/lib/config";
+import { COLUMN_I, DIABETIC_CATEGORIES } from "@/lib/config";
 import { fmt, type Strings } from "@/lib/strings";
 import { hasErrors, validateDetails, type Details, type FieldError } from "@/lib/validate";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
@@ -68,41 +68,7 @@ export default function DetailsScreen() {
         </>
       }
     >
-      <Section title={t.detailsSecAbout}>
-        <div className="-mb-5 tall:-mb-7">
-          <Field id="name" label={t.f.name} error={err("name")}>
-            <TextInput
-              id="name"
-              enterKeyHint="next"
-              maxLength={80}
-              value={d.name}
-              invalid={!!err("name")}
-              onChange={(e) => set({ name: e.target.value })}
-              onBlur={blur("name")}
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-x-5">
-            {num("age", t.f.age, true)}
-            <Field id="gender" label={t.f.gender} error={err("gender")}>
-              <Segmented
-                id="gender"
-                value={d.gender}
-                invalid={!!err("gender")}
-                options={GENDERS.map((g) => ({ value: g.value, label: g[lang] }))}
-                onChange={(v) => {
-                  set({ gender: v });
-                  blur("gender")();
-                }}
-              />
-            </Field>
-            {num("heightCm", t.f.heightCm)}
-            {num("weightKg", t.f.weightKg)}
-          </div>
-        </div>
-      </Section>
-
-      <Section title={t.detailsSecHealth} className="mt-4 tall:mt-6">
+      <Section title={t.detailsSecHealth}>
         <div className="-mb-5 tall:-mb-7">
           <Field id="diabeticCategory" label={t.f.diabeticCategory} error={err("diabeticCategory")}>
             <div className="relative">
@@ -127,7 +93,7 @@ export default function DetailsScreen() {
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-x-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-5">
             {num("hba1c", t.f.hba1c, false, t.optionalHint)}
             {num("rbs", t.f.rbs, true, t.optionalHint)}
             {COLUMN_I && num("columnI", COLUMN_I[lang], true, t.optionalHint)}

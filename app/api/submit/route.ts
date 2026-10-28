@@ -84,13 +84,9 @@ async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promi
     d.onMedicine === "Yes" ? (d.medicineDetails.trim() ? `Yes - ${d.medicineDetails.trim()}` : "Yes") : d.onMedicine;
 
   // Link cells (photos, signature, folder) and the final Reference ID are filled in by the script.
+  // Patient Name, Age, Gender, Height and Weight are no longer collected: those cells are left empty.
   const cells: Record<string, string | number> = {
     Timestamp: formatIST(now),
-    "Patient Name": d.name.trim(),
-    Age: num(d.age),
-    Gender: d.gender,
-    "Height (cm)": num(d.heightCm),
-    "Weight (kgs)": num(d.weightKg),
     "Diabetic Category": d.diabeticCategory,
     HbA1c: num(d.hba1c),
     RBS: num(d.rbs),

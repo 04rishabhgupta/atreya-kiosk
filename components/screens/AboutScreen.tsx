@@ -57,7 +57,7 @@ export default function AboutScreen() {
     >
       <div className="flex min-h-full flex-col items-center text-center">
         <div className="min-h-6 flex-[2]" />
-        <div className="anim-fade">
+        <div className="anim-fade compact:hidden">
           <Contours />
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { CONSENT_VERSION } from "@/lib/config";
-import { hasErrors, isMinor, validateConsent } from "@/lib/validate";
+import { hasErrors, validateConsent } from "@/lib/validate";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/controls";
@@ -10,13 +10,11 @@ import { ScreenLayout, Section } from "../ui/ScreenLayout";
 
 export default function ConsentScreen() {
   const t = useStrings();
-  const { consent: c, details } = useKiosk();
+  const { consent: c } = useKiosk();
   const { next, back, dispatch } = useActions();
-  const minor = isMinor(details.age);
-  // The single checkbox stands for every statement listed above it, so it sets all three together.
-  // (If the age later flips adult <-> minor, the reducer clears ageOrGuardian and this unticks.)
+  // The single checkbox stands for both statements listed above it, so it sets them together.
   const agreed = !hasErrors(validateConsent(c));
-  const setAll = (v: boolean) => dispatch({ type: "consent", patch: { training: v, notDiagnosis: v, ageOrGuardian: v } });
+  const setAll = (v: boolean) => dispatch({ type: "consent", patch: { training: v, notDiagnosis: v } });
 
   const onConfirm = () => {
     if (!agreed) return;
@@ -66,7 +64,7 @@ export default function ConsentScreen() {
       <Section className="mt-4 tall:mt-5">
         <p className="text-[16px] font-semibold text-fg tall:text-[19px]">{t.consentAgreeIntro}</p>
         <ul className="mt-2.5 mb-5 space-y-1.5 text-[16px] leading-snug text-fg tall:text-[19px]">
-          {[t.cTraining, t.cNotDiagnosis, minor ? t.cGuardian : t.cAdult].map((s) => (
+          {[t.cTraining, t.cNotDiagnosis].map((s) => (
             <li key={s} className="flex gap-3">
               <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-fg-3" />
               {s}

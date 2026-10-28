@@ -80,8 +80,8 @@ function Shell() {
 
   return (
     <div className="app-h flex flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-hair bg-surface px-6 sm:px-8 tall:px-12">
-        <div className="flex min-h-[72px] items-center gap-2 tall:min-h-[88px]">
+      <header className="shrink-0 border-b border-hair bg-surface px-4 sm:px-8 tall:px-12">
+        <div className="flex min-h-14 items-center gap-2 sm:min-h-[72px] tall:min-h-[88px] compact:min-h-12">
           <span className="flex items-center gap-2.5">
             <BrandMark className="size-7 tall:size-8" />
             <span className="text-[18px] font-semibold tracking-[-0.01em] text-brand tall:text-[21px]">
@@ -92,7 +92,7 @@ function Shell() {
           <button
             type="button"
             onClick={() => a.dispatch({ type: "lang", lang: s.lang === "en" ? "hi" : "en" })}
-            className="flex min-h-12 items-center gap-2 rounded-full border border-hair-strong px-4 text-[15px] font-medium text-fg-2 active:bg-surface-2 tall:min-h-14 tall:px-5 tall:text-[17px]"
+            className="flex min-h-11 items-center gap-2 rounded-full border border-hair-strong px-3.5 text-[15px] font-medium text-fg-2 active:bg-surface-2 sm:min-h-12 sm:px-4 tall:min-h-14 tall:px-5 tall:text-[17px] compact:min-h-11"
           >
             <IconGlobe className="size-[17px]" />
             {t.langToggle}
@@ -101,10 +101,11 @@ function Shell() {
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="flex min-h-12 items-center gap-2 rounded-full px-4 text-[15px] font-medium text-fg-3 active:bg-surface-2 tall:min-h-14 tall:text-[17px]"
+              className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full px-3 text-[15px] font-medium text-fg-3 active:bg-surface-2 sm:min-h-12 sm:px-4 tall:min-h-14 tall:text-[17px] compact:min-h-11"
             >
               <IconRefresh className="size-[17px]" />
-              {t.startOver}
+              {/* Icon-only on phones so it never wraps; the label stays for screen readers. */}
+              <span className="sr-only sm:not-sr-only">{t.startOver}</span>
             </button>
           )}
         </div>
@@ -142,8 +143,8 @@ function StepIndicator({ step, label, stepOf }: { step: number; label: string; s
   const pct = ((step + 1) / STEP_COUNT) * 100;
   const pad = (n: number) => String(n).padStart(2, "0");
   return (
-    <div className="pb-4 tall:pb-5">
-      <p className="mb-3 flex items-baseline gap-3" aria-label={`${fmt(stepOf, { n: step + 1, total: STEP_COUNT })} · ${label}`}>
+    <div className="pb-3 sm:pb-4 tall:pb-5 compact:pb-2 cramped:pb-2">
+      <p className="mb-2.5 flex items-baseline gap-3 sm:mb-3 compact:sr-only cramped:sr-only" aria-label={`${fmt(stepOf, { n: step + 1, total: STEP_COUNT })} · ${label}`}>
         <span className="text-[17px] leading-none font-semibold text-fg tabular-nums tall:text-[20px]">{pad(step + 1)}</span>
         <span className="text-[14px] text-fg-3 tabular-nums tall:text-[16px]">/ {pad(STEP_COUNT)}</span>
         <span className="ml-1 text-[15px] font-medium text-fg-2 tall:text-[17px]">{label}</span>
