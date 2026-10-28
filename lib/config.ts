@@ -1,6 +1,7 @@
 // Single place for every tunable. Shared by client and server, so no secrets here.
 
-export const CONSENT_VERSION = "ATR-CONSENT-1.0-2026-10";
+// 1.1: single combined consent checkbox, no signature. Bump again whenever the consent text changes.
+export const CONSENT_VERSION = "ATR-CONSENT-1.1-2026-10";
 // TODO before go-live: replace with a monitored inbox. Shown on the consent screen as the withdrawal route.
 export const CONTACT_EMAIL = "privacy@your-domain.example";
 export const RETENTION_YEARS = 5;
@@ -9,10 +10,20 @@ export const RETENTION_YEARS = 5;
 export const IDLE_TIMEOUT_MS = 90_000;
 export const IDLE_COUNTDOWN_S = 10;
 export const SUCCESS_RESET_S = 15;
-export const ABOUT_AUTO_ADVANCE_MS = 6_000;
 
 // ---- Camera ----
-export const AUTO_CAPTURE = true; // only fires when FaceDetector is available for that shot
+// Off: with no positioning checks, "every check passes" happens the moment a well-lit face appears, which is
+// too early (participants are still settling or removing glasses). They tap Capture when ready instead.
+export const AUTO_CAPTURE = false;
+
+// Self-hosted MediaPipe face detector (BlazeFace short-range). The runtime is copied into
+// public/mediapipe/wasm-<version> by scripts/copy-mediapipe.mjs, which checks this matches package.json.
+export const MEDIAPIPE_VERSION = "1.1.1";
+export const FACE_DETECTOR = {
+  wasmBase: `/mediapipe/wasm-${MEDIAPIPE_VERSION}`,
+  model: "/mediapipe/blaze_face_short_range-f16-v1.tflite",
+  minConfidence: 0.5, // detections below this are ignored entirely (also when counting people)
+} as const;
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
@@ -32,16 +43,16 @@ export const IMAGE = {
 
 export const CHECKS = {
   intervalMs: 250, // ~4 checks per second
-  faceIntervalMs: 500, // FaceDetector is pricier: ~2 per second
+  faceIntervalMs: 333, // face detection is pricier: ~3 per second
   analysisLongEdge: 160,
-  brightnessMin: 70, // mean luma 0-255 inside the oval
+  // Lighting is measured on the detected face (not on a fixed region), so it works wherever the face is.
+  brightnessMin: 70, // mean luma 0-255 on the face
   brightnessMax: 205,
-  sharpnessMin: 18, // Laplacian variance on the 160px crop
-  motionMax: 10, // mean abs frame difference
-  goodHoldMs: 1_000,
-  faceMinWidth: 0.4, // face width as a fraction of oval width
-  faceMaxWidth: 1.15,
-  faceCentreTolerance: 0.25, // allowed face-centre offset, as a fraction of oval width
+  overexposedMax: 0.06, // max fraction of face pixels that are blown out (luma >= 248)
+  sideShadowMax: 0.3, // front shot: max left/right brightness imbalance, as a fraction of the brighter half
+  goodHoldMs: 1_000, // auto-capture only (see AUTO_CAPTURE)
+  frontScoreMin: 0.7, // front shot: detector confidence needed for "face clearly visible"
+  profileScoreMin: 0.5, // turned shots: the detector is naturally less sure on a 45-degree profile
 } as const;
 
 export type ShotId = "front" | "left" | "right";
@@ -51,14 +62,15 @@ export interface ShotConfig {
   fileName: string; // Drive file name
   // Which way the participant turns their head. "Left" = left side of the face shown,
   // so they turn to their right. Flip here if your protocol defines it the other way.
+  // Also selects the checks: "none" = front (stricter confidence, side-shadow check);
+  // turned shots use the profile confidence threshold. The turn itself is guided, not enforced.
   turn: "none" | "left" | "right";
-  faceCheck: boolean; // FaceDetector is unreliable on 45° profiles, so only check the front
 }
 
 export const SHOTS: ShotConfig[] = [
-  { id: "front", column: "Facial Image - Front", fileName: "front.jpg", turn: "none", faceCheck: true },
-  { id: "left", column: "Facial Image - Left", fileName: "left.jpg", turn: "right", faceCheck: false },
-  { id: "right", column: "Facial Image - Right", fileName: "right.jpg", turn: "left", faceCheck: false },
+  { id: "front", column: "Facial Image - Front", fileName: "front.jpg", turn: "none" },
+  { id: "left", column: "Facial Image - Left", fileName: "left.jpg", turn: "right" },
+  { id: "right", column: "Facial Image - Right", fileName: "right.jpg", turn: "left" },
 ];
 
 // Optional rPPG clip. Keep bitrate x seconds well under the 4 MB request cap (images take ~1.2 MB).

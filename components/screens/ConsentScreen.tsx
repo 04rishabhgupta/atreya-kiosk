@@ -1,29 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import { CONSENT_VERSION } from "@/lib/config";
-import { hasErrors, isMinor, validateConsent, type Consent } from "@/lib/validate";
+import { hasErrors, isMinor, validateConsent } from "@/lib/validate";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
-import { SignaturePad } from "../SignaturePad";
 import { Button } from "../ui/Button";
 import { Checkbox } from "../ui/controls";
-import { IconBack } from "../ui/icons";
-import { ScreenLayout } from "../ui/ScreenLayout";
+import { IconBack, IconCheck } from "../ui/icons";
+import { ScreenLayout, Section } from "../ui/ScreenLayout";
 
 export default function ConsentScreen() {
   const t = useStrings();
-  const { consent: c, details, signature } = useKiosk();
-  const { next, back, dispatch, setSignature } = useActions();
-  const [submitted, setSubmitted] = useState(false);
+  const { consent: c, details } = useKiosk();
+  const { next, back, dispatch } = useActions();
   const minor = isMinor(details.age);
-  const errors = validateConsent(c, !!signature);
-  const show = submitted ? errors : {};
+  // The single checkbox stands for every statement listed above it, so it sets all three together.
+  // (If the age later flips adult <-> minor, the reducer clears ageOrGuardian and this unticks.)
+  const agreed = !hasErrors(validateConsent(c));
+  const setAll = (v: boolean) => dispatch({ type: "consent", patch: { training: v, notDiagnosis: v, ageOrGuardian: v } });
 
-  const set = (patch: Partial<Consent>) => dispatch({ type: "consent", patch });
-
-  const onContinue = () => {
-    setSubmitted(true);
-    if (hasErrors(errors)) return;
+  const onConfirm = () => {
+    if (!agreed) return;
     dispatch({ type: "consentedAt", at: new Date().toISOString() });
     next();
   };
@@ -36,55 +32,51 @@ export default function ConsentScreen() {
           <Button variant="secondary" onClick={back} aria-label={t.back}>
             <IconBack />
           </Button>
-          <Button className="flex-1" onClick={onContinue}>
-            {t.continue}
+          <Button className="flex-1" disabled={!agreed} onClick={onConfirm}>
+            {t.consentConfirm}
           </Button>
         </>
       }
     >
-      <ul className="mb-4 rounded-3xl bg-brand-50 p-5">
-        {t.consentSummary.map((line) => (
-          <li key={line} className="flex gap-3 py-1.5">
-            <span className="mt-2.5 size-2.5 shrink-0 rounded-full bg-accent" />
-            <span>{line}</span>
-          </li>
-        ))}
-      </ul>
+      <Section>
+        <ul className="divide-y divide-hair">
+          {t.consentSummary.map((line) => (
+            <li key={line} className="flex gap-3.5 py-3 text-[16px] leading-snug text-fg first:pt-0 last:pb-0 tall:py-4 tall:text-[19px]">
+              <span className="mt-0.5 flex size-[22px] shrink-0 items-center justify-center rounded-full bg-mint/10 text-mint tall:size-6">
+                <IconCheck className="size-3.5" />
+              </span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-      <details className="mb-6 rounded-2xl border-2 border-line bg-card">
-        <summary className="flex min-h-16 cursor-pointer items-center px-5 font-semibold text-brand">{t.fullTextToggle}</summary>
-        <div className="px-5 pb-5 text-[19px]">
+      <Section title={t.fullTextToggle} className="mt-4 tall:mt-5">
+        <div className="text-[15px] tall:text-[18px]">
           {t.fullText.map((s) => (
-            <div key={s.h} className="mt-3">
-              <h3 className="font-semibold">{s.h}</h3>
-              <p className="text-muted">{s.p}</p>
+            <div key={s.h} className="mt-3.5 first:mt-0">
+              <h3 className="font-semibold text-fg">{s.h}</h3>
+              <p className="mt-0.5 leading-normal text-fg-2">{s.p}</p>
             </div>
           ))}
-          <p className="mt-4 text-[16px] text-muted">{CONSENT_VERSION}</p>
+          <p className="mt-4 font-mono text-[12.5px] text-fg-3">{CONSENT_VERSION}</p>
         </div>
-      </details>
+      </Section>
 
-      <Checkbox checked={c.training} invalid={!!show.training} onChange={(v) => set({ training: v })}>
-        {t.cTraining}
-      </Checkbox>
-      <Checkbox checked={c.notDiagnosis} invalid={!!show.notDiagnosis} onChange={(v) => set({ notDiagnosis: v })}>
-        {t.cNotDiagnosis}
-      </Checkbox>
-      <Checkbox checked={c.ageOrGuardian} invalid={!!show.ageOrGuardian} onChange={(v) => set({ ageOrGuardian: v })}>
-        {minor ? t.cGuardian : t.cAdult}
-      </Checkbox>
-      <div className="mt-4">
-        <p className="mb-2 font-semibold">{t.signatureLabel}</p>
-        <SignaturePad
-          existingUrl={signature?.url ?? null}
-          onChange={setSignature}
-          clearLabel={t.clear}
-          hint={t.signHere}
-          invalid={!!show.signature}
-        />
-      </div>
-
-      {submitted && hasErrors(errors) && <p className="mt-2 font-semibold text-bad">{t.consentRequired}</p>}
+      <Section className="mt-4 tall:mt-5">
+        <p className="text-[16px] font-semibold text-fg tall:text-[19px]">{t.consentAgreeIntro}</p>
+        <ul className="mt-2.5 mb-5 space-y-1.5 text-[16px] leading-snug text-fg tall:text-[19px]">
+          {[t.cTraining, t.cNotDiagnosis, minor ? t.cGuardian : t.cAdult].map((s) => (
+            <li key={s} className="flex gap-3">
+              <span className="mt-[0.55em] size-1.5 shrink-0 rounded-full bg-fg-3" />
+              {s}
+            </li>
+          ))}
+        </ul>
+        <Checkbox checked={agreed} onChange={setAll}>
+          <span className="font-medium">{t.cAll}</span>
+        </Checkbox>
+      </Section>
     </ScreenLayout>
   );
 }

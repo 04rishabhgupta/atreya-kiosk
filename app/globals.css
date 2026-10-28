@@ -1,21 +1,93 @@
 @import "tailwindcss";
 
+/*
+ * atreya.ai kiosk — light design system.
+ * Soft grey-green canvas, white cards with hairline borders and a whisper of shadow, graphite text.
+ * Brand evergreen for primary actions; a clearer green ("mint") for selection and confirmation;
+ * the brand orange ("ember") only as a small accent. System fonts only: nothing extra to download.
+ */
 @theme {
-  --color-paper: #faf8f3;
-  --color-card: #ffffff;
-  --color-ink: #1c2620;
-  --color-muted: #56625a;
-  --color-line: #e2ded3;
+  --color-bg: #f4f6f5;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f3f1;
+  --color-surface-3: #e5eae7;
+  --color-hair: rgb(21 32 27 / 0.09);
+  --color-hair-strong: rgb(21 32 27 / 0.17);
+
+  --color-fg: #15201b;
+  --color-fg-2: #4b5852;
+  --color-fg-3: #65726c;
+
   --color-brand: #1b4332;
-  --color-brand-700: #2d6a4f;
-  --color-brand-50: #edf4ef;
-  --color-accent: #e07b28;
-  --color-accent-50: #fdf1e6;
-  --color-bad: #c0392b;
-  --color-bad-50: #fbecea;
-  --color-warn: #c98a12;
-  --color-good: #2f9e5b;
+  --color-brand-700: #245a43;
+  --color-mint: #1f7a55;
+  --color-ember: #e07b28;
+  --color-coral: #c0392b;
+  --color-amber: #b7791f;
+  --color-ivory: #f2f1ea; /* light text on the dark camera preview */
+  --color-ink: #0b1411;
+
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Devanagari", "Nirmala UI", sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", monospace;
+
+  --shadow-card: 0 1px 2px rgb(21 32 27 / 0.05), 0 1px 1px rgb(21 32 27 / 0.03);
+  --shadow-lift: 0 1px 2px rgb(21 32 27 / 0.12), 0 2px 6px -2px rgb(21 32 27 / 0.14);
+}
+
+/* Large portrait kiosks (1080x1920): a step up in type and air. */
+@custom-variant tall (@media (min-height: 1500px));
+/* Short landscape screens (e.g. 1366x768): compress the hero moments so nothing scrolls. */
+@custom-variant short (@media (max-height: 820px));
+
+/* ---- Type scale: one set of roles, used on every screen ---- */
+@layer components {
+  .t-display {
+    font-size: 42px;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 650;
+  }
+  .t-title {
+    font-size: 28px;
+    line-height: 1.2;
+    letter-spacing: -0.018em;
+    font-weight: 650;
+  }
+  .t-lead {
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--color-fg-2);
+  }
+  .t-label {
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+  .t-kicker {
+    font-size: 12.5px;
+    line-height: 1.3;
+    font-weight: 650;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-fg-3);
+  }
+  @media (min-height: 1500px) {
+    .t-display { font-size: 56px; }
+    .t-title { font-size: 34px; }
+    .t-lead { font-size: 21px; }
+    .t-label { font-size: 17px; }
+    .t-kicker { font-size: 14px; }
+  }
+  /* Devanagari: never letter-space (breaks the headline bar), and give it a little more leading. */
+  :lang(hi) .t-kicker { letter-spacing: 0; font-size: 14px; }
+  :lang(hi) .t-display { font-size: 36px; line-height: 1.3; letter-spacing: 0; }
+  :lang(hi) .t-title { font-size: 26px; line-height: 1.35; letter-spacing: 0; }
+  @media (min-height: 1500px) {
+    :lang(hi) .t-display { font-size: 48px; }
+    :lang(hi) .t-title { font-size: 32px; }
+  }
 }
 
 /* ---- Kiosk hardening ---- */
@@ -24,10 +96,11 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 body {
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font-size: 20px;
-  line-height: 1.45;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.5;
   overscroll-behavior: none;
   -webkit-user-select: none;
   user-select: none;
@@ -39,7 +112,7 @@ textarea,
 select {
   -webkit-user-select: text;
   user-select: text;
-  font-size: 22px;
+  font-size: 19px;
 }
 img {
   -webkit-user-drag: none;
@@ -52,34 +125,28 @@ img {
   transform: scaleX(-1);
 }
 
-/* ---- Motion: transform + opacity only ---- */
+/* ---- Motion: a few short, transform/opacity-only transitions. Nothing loops except the turn hint. ---- */
 @keyframes enter {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
 }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop {
-  0% { opacity: 0; transform: scale(0.6); }
-  70% { opacity: 1; transform: scale(1.06); }
+  0% { opacity: 0; transform: scale(0.8); }
   100% { opacity: 1; transform: scale(1); }
 }
-@keyframes pulse-oval {
-  0%, 100% { opacity: 0.35; transform: scale(1); }
-  50% { opacity: 0; transform: scale(1.06); }
-}
-@keyframes nudge-left { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-18px); } }
-@keyframes nudge-right { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(18px); } }
+@keyframes nudge-left { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-14px); } }
+@keyframes nudge-right { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(14px); } }
 @keyframes flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
-@keyframes count { from { opacity: 0; transform: scale(1.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes count { from { opacity: 0; transform: scale(1.3); } to { opacity: 1; transform: scale(1); } }
 @keyframes indeterminate { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 
-.anim-enter { animation: enter 0.22s ease-out both; }
+.anim-enter { animation: enter 0.2s ease-out both; }
 .anim-fade { animation: fade 0.2s ease-out both; }
-.anim-pop { animation: pop 0.45s ease-out both; }
-.anim-pulse { animation: pulse-oval 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-.anim-nudge-left { animation: nudge-left 1.4s ease-in-out infinite; }
-.anim-nudge-right { animation: nudge-right 1.4s ease-in-out infinite; }
+.anim-pop { animation: pop 0.3s ease-out both; }
+.anim-nudge-left { animation: nudge-left 1.6s ease-in-out infinite; }
+.anim-nudge-right { animation: nudge-right 1.6s ease-in-out infinite; }
 .anim-flash { animation: flash 0.35s ease-out both; }
-.anim-count { animation: count 0.4s ease-out both; }
+.anim-count { animation: count 0.35s ease-out both; }
 .anim-indeterminate { animation: indeterminate 1.2s linear infinite; }
 
 @media (prefers-reduced-motion: reduce) {

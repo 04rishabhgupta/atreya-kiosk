@@ -1,12 +1,8 @@
-// Cheap per-frame quality checks on a tiny downscaled crop. No ML libraries.
-import { CHECKS, IMAGE } from "@/lib/config";
+// Per-frame quality checks: the face detector's result (components/camera/detector.ts) plus cheap pixel
+// statistics measured on the detected face itself, combined into one prompt for the participant.
+// Deliberately no distance, oval-positioning or head-turn checks: the oval is a visual guide only.
+import { CHECKS, IMAGE, type ShotConfig } from "@/lib/config";
 
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 export interface Oval {
   cx: number;
   cy: number;
@@ -14,34 +10,41 @@ export interface Oval {
   ry: number;
 }
 
-/** Face oval in box pixels. Shared by the SVG overlay and the analysis mask so they always match. */
+/** Face-guide oval in box pixels: a generous, comfortable target that nearly fills the preview width. */
 export function ovalFor(boxW: number, boxH: number): Oval {
-  const w = Math.min(boxW * 0.64, boxH * 0.5);
-  return { cx: boxW / 2, cy: boxH * 0.47, rx: w / 2, ry: (w * 1.3) / 2 };
+  const rx = Math.min(boxW * 0.47, boxH * 0.34);
+  return { cx: boxW / 2, cy: boxH * 0.47, rx, ry: rx * 1.3 };
 }
 
-/** The part of the video frame that `object-fit: cover` shows in a boxW x boxH element. */
-export function coverCrop(vw: number, vh: number, boxW: number, boxH: number): Rect {
-  const scale = Math.max(boxW / vw, boxH / vh);
-  const w = boxW / scale;
-  const h = boxH / scale;
-  return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+/** A face as reported by the detector, in video pixels. */
+export interface RawFace {
+  score: number;
+  box: { originX: number; originY: number; width: number; height: number };
+}
+
+export interface FaceResult {
+  count: number; // confident faces anywhere in the camera frame (the whole frame is what gets saved)
+  score: number; // confidence of the main (largest) face
+  box: RawFace["box"] | null;
+}
+
+export function toFaceResult(faces: RawFace[]): FaceResult {
+  const f = faces.reduce<RawFace | undefined>((a, b) => (!a || b.box.width > a.box.width ? b : a), undefined);
+  return f ? { count: faces.length, score: f.score, box: f.box } : { count: 0, score: 0, box: null };
 }
 
 export interface Metrics {
-  brightness: number; // mean luma 0-255 inside the oval
-  sharpness: number; // Laplacian variance inside the oval
-  motion: number; // mean abs luma change since the previous check
+  frame: number; // mean luma 0-255 of the whole frame (used when no face is found)
+  face: { brightness: number; overexposed: number; sideImbalance: number } | null; // on the main face
 }
 
+const BLOWN_OUT = 248;
+
+/** Lighting statistics on a tiny downscaled copy of the frame (~160 px long edge). */
 export class FrameAnalyzer {
   private canvas = document.createElement("canvas");
   private ctx: CanvasRenderingContext2D;
-  private mask = new Uint8Array(0);
-  private gray = new Float32Array(0);
-  private prev: Float32Array | null = null;
-  private w = 0;
-  private h = 0;
+  private sizedFor = "";
 
   constructor() {
     const ctx = this.canvas.getContext("2d", { willReadFrequently: true, alpha: false });
@@ -49,134 +52,99 @@ export class FrameAnalyzer {
     this.ctx = ctx;
   }
 
-  /** Call when the on-screen box size changes. */
-  resize(boxW: number, boxH: number) {
-    const s = CHECKS.analysisLongEdge / Math.max(boxW, boxH);
-    this.w = Math.max(8, Math.round(boxW * s));
-    this.h = Math.max(8, Math.round(boxH * s));
-    this.canvas.width = this.w;
-    this.canvas.height = this.h;
-    const o = ovalFor(this.w, this.h);
-    this.mask = new Uint8Array(this.w * this.h);
-    for (let y = 0; y < this.h; y++)
-      for (let x = 0; x < this.w; x++) {
-        const dx = (x - o.cx) / o.rx;
-        const dy = (y - o.cy) / o.ry;
-        if (dx * dx + dy * dy <= 1) this.mask[y * this.w + x] = 1;
-      }
-    this.gray = new Float32Array(this.w * this.h);
-    this.prev = null;
-  }
-
-  analyze(video: HTMLVideoElement, crop: Rect): Metrics {
-    const { w, h, mask, gray } = this;
-    this.ctx.drawImage(video, crop.x, crop.y, crop.w, crop.h, 0, 0, w, h);
-    const px = this.ctx.getImageData(0, 0, w, h).data;
-
-    let sum = 0;
-    let n = 0;
-    let diff = 0;
-    for (let i = 0, p = 0; i < w * h; i++, p += 4) {
-      const g = (77 * (px[p] ?? 0) + 150 * (px[p + 1] ?? 0) + 29 * (px[p + 2] ?? 0)) >> 8;
-      gray[i] = g;
-      if (mask[i]) {
-        sum += g;
-        n++;
-        if (this.prev) diff += Math.abs(g - (this.prev[i] ?? g));
-      }
+  analyze(video: HTMLVideoElement, face: RawFace["box"] | null): Metrics {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const s = CHECKS.analysisLongEdge / Math.max(vw, vh);
+    const w = Math.max(8, Math.round(vw * s));
+    const h = Math.max(8, Math.round(vh * s));
+    if (this.sizedFor !== `${w}x${h}`) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+      this.sizedFor = `${w}x${h}`;
     }
+    this.ctx.drawImage(video, 0, 0, w, h);
+    const px = this.ctx.getImageData(0, 0, w, h).data;
+    const luma = (i: number) => (77 * (px[i] ?? 0) + 150 * (px[i + 1] ?? 0) + 29 * (px[i + 2] ?? 0)) >> 8;
 
-    // 4-neighbour Laplacian over interior oval pixels.
-    let ls = 0;
-    let ls2 = 0;
-    let ln = 0;
-    for (let y = 1; y < h - 1; y++)
-      for (let x = 1; x < w - 1; x++) {
-        const i = y * w + x;
-        if (!mask[i]) continue;
-        const l = 4 * gray[i]! - gray[i - 1]! - gray[i + 1]! - gray[i - w]! - gray[i + w]!;
-        ls += l;
-        ls2 += l * l;
-        ln++;
+    let all = 0;
+    for (let i = 0; i < px.length; i += 4) all += luma(i);
+    const frame = all / (w * h);
+    if (!face) return { frame, face: null };
+
+    // Ellipse inscribed in the face box, so background in the box corners doesn't count; split at its centre.
+    const cx = (face.originX + face.width / 2) * s;
+    const cy = (face.originY + face.height / 2) * s;
+    const rx = (face.width / 2) * s;
+    const ry = (face.height / 2) * s;
+    let n = 0;
+    let blown = 0;
+    const sum = [0, 0];
+    const cnt = [0, 0];
+    for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(h, Math.ceil(cy + ry)); y++)
+      for (let x = Math.max(0, Math.floor(cx - rx)); x < Math.min(w, Math.ceil(cx + rx)); x++) {
+        const dx = (x - cx) / rx;
+        const dy = (y - cy) / ry;
+        if (dx * dx + dy * dy > 1) continue;
+        const g = luma((y * w + x) * 4);
+        const side = x < cx ? 0 : 1;
+        sum[side]! += g;
+        cnt[side]!++;
+        n++;
+        if (g >= BLOWN_OUT) blown++;
       }
-
-    const hadPrev = !!this.prev;
-    this.prev = this.prev ?? new Float32Array(w * h);
-    this.prev.set(gray);
-
-    const mean = ln ? ls / ln : 0;
+    if (!n) return { frame, face: null };
+    const left = cnt[0] ? sum[0]! / cnt[0]! : 0;
+    const right = cnt[1] ? sum[1]! / cnt[1]! : 0;
+    const hi = Math.max(left, right);
     return {
-      brightness: n ? sum / n : 0,
-      sharpness: ln ? ls2 / ln - mean * mean : 0,
-      motion: hadPrev && n ? diff / n : 0,
+      frame,
+      face: { brightness: (sum[0]! + sum[1]!) / n, overexposed: blown / n, sideImbalance: hi > 0 ? Math.abs(left - right) / hi : 0 },
     };
   }
-}
-
-// ---- Optional FaceDetector (Shape Detection API). Never required. ----
-
-interface DetectedFace {
-  boundingBox: DOMRectReadOnly;
-}
-interface FaceDetectorLike {
-  detect(src: CanvasImageSource): Promise<DetectedFace[]>;
-}
-type FaceDetectorCtor = new (o?: { maxDetectedFaces?: number; fastMode?: boolean }) => FaceDetectorLike;
-
-export function createFaceDetector(): FaceDetectorLike | null {
-  const Ctor = (window as unknown as { FaceDetector?: FaceDetectorCtor }).FaceDetector;
-  if (!Ctor) return null;
-  try {
-    return new Ctor({ maxDetectedFaces: 2, fastMode: true });
-  } catch {
-    return null;
-  }
-}
-
-/** Face boxes converted from video pixels into on-screen box pixels. */
-export interface FaceResult {
-  count: number;
-  box: Rect | null;
-}
-
-export function toBoxCoords(faces: DetectedFace[], crop: Rect, boxW: number): FaceResult {
-  const f = faces[0];
-  if (!f) return { count: 0, box: null };
-  const s = boxW / crop.w;
-  const b = f.boundingBox;
-  return { count: faces.length, box: { x: (b.x - crop.x) * s, y: (b.y - crop.y) * s, w: b.width * s, h: b.height * s } };
 }
 
 // ---- Turning metrics into one prompt ----
 
 export type Guidance =
   | "starting"
-  | "tooDark"
-  | "tooBright"
+  | "checking"
+  | "detectorFailed"
   | "noFace"
   | "multipleFaces"
-  | "moveCloser"
-  | "moveBack"
-  | "centre"
-  | "holdStill"
+  | "faceNotClear"
+  | "tooDark"
+  | "tooBright"
+  | "overexposed"
+  | "unevenLight"
   | "good";
 export type Level = "bad" | "warn" | "good";
+export type DetectorState = "loading" | "ready" | "failed";
 
-export function evaluate(m: Metrics, face: FaceResult | null, oval: Oval): { g: Guidance; level: Level } {
-  if (m.brightness < CHECKS.brightnessMin) return { g: "tooDark", level: "bad" };
-  if (m.brightness > CHECKS.brightnessMax) return { g: "tooBright", level: "bad" };
-  if (face) {
-    if (face.count === 0 || !face.box) return { g: "noFace", level: "bad" };
-    if (face.count > 1) return { g: "multipleFaces", level: "bad" };
-    const ratio = face.box.w / (oval.rx * 2);
-    if (ratio < CHECKS.faceMinWidth) return { g: "moveCloser", level: "warn" };
-    if (ratio > CHECKS.faceMaxWidth) return { g: "moveBack", level: "warn" };
-    const fx = face.box.x + face.box.w / 2;
-    const fy = face.box.y + face.box.h / 2;
-    const tol = CHECKS.faceCentreTolerance * oval.rx * 2;
-    if (Math.abs(fx - oval.cx) > tol || Math.abs(fy - oval.cy) > tol) return { g: "centre", level: "warn" };
+/**
+ * The only checks that block Capture: a clearly visible face, exactly one person, and even lighting.
+ * There is deliberately no path to "good" without a working detector and a detected face.
+ */
+export function evaluate(m: Metrics, face: FaceResult | null, detector: DetectorState, turn: ShotConfig["turn"]): { g: Guidance; level: Level } {
+  if (detector === "failed") return { g: "detectorFailed", level: "bad" };
+  if (detector === "loading" || !face) return { g: "checking", level: "warn" };
+  if (face.count === 0) {
+    // A very dark or washed-out picture is the usual reason no face is found: say so.
+    if (m.frame < CHECKS.brightnessMin) return { g: "tooDark", level: "bad" };
+    if (m.frame > CHECKS.brightnessMax) return { g: "tooBright", level: "bad" };
+    return { g: "noFace", level: "bad" };
   }
-  if (m.motion > CHECKS.motionMax || m.sharpness < CHECKS.sharpnessMin) return { g: "holdStill", level: "warn" };
+  if (face.count > 1) return { g: "multipleFaces", level: "bad" };
+  const front = turn === "none";
+  if (face.score < (front ? CHECKS.frontScoreMin : CHECKS.profileScoreMin)) return { g: "faceNotClear", level: "bad" };
+
+  const f = m.face;
+  if (!f) return { g: "checking", level: "warn" }; // face found but not yet measured (stats lag detection slightly)
+  if (f.brightness < CHECKS.brightnessMin) return { g: "tooDark", level: "bad" };
+  if (f.brightness > CHECKS.brightnessMax) return { g: "tooBright", level: "bad" };
+  if (f.overexposed > CHECKS.overexposedMax) return { g: "overexposed", level: "bad" };
+  // A turned face is naturally lit unevenly, so the side-shadow check only applies to the front shot.
+  if (front && f.sideImbalance > CHECKS.sideShadowMax) return { g: "unevenLight", level: "warn" };
   return { g: "good", level: "good" };
 }
 

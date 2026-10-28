@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ENABLE_VIDEO, SHOTS, VIDEO } from "@/lib/config";
+import { AUTO_CAPTURE, ENABLE_VIDEO, SHOTS, VIDEO } from "@/lib/config";
 import { fmt } from "@/lib/strings";
 import { CameraView, type CameraError, type CameraHandle } from "../camera/CameraView";
 import { markActive } from "../IdleGuard";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
-import { IconBack, IconCamera, IconCheck, IconRefresh } from "../ui/icons";
+import { IconBack, IconCamera, IconCheck, IconRefresh, IconX, PoseGlyph } from "../ui/icons";
 import { ScreenLayout } from "../ui/ScreenLayout";
 
 type Phase = "live" | "countdown" | "review" | "video";
@@ -25,6 +25,9 @@ export default function CaptureScreen() {
   const [flash, setFlash] = useState(0);
   const [error, setError] = useState<CameraError | null>(null);
   const [camKey, setCamKey] = useState(0);
+  // Capture is allowed only while the automatic checks pass: a clearly visible face, one person, even lighting.
+  const [ready, setReady] = useState(false);
+  const canCapture = phase === "live" && ready;
 
   const shot = SHOTS[idx]!;
   const current = captures[shot.id];
@@ -34,8 +37,14 @@ export default function CaptureScreen() {
     setCount(3);
     setPhase("countdown");
   }, []);
-  const onAutoCapture = startCountdown;
+  const onAutoCapture = startCountdown; // CameraView only fires this when autoCapture (below) allows it
   const onError = useCallback((e: CameraError) => setError(e), []);
+  const onReady = useCallback((r: boolean) => setReady(r), []);
+
+  // Checks keep running during the 3-2-1: if anything fails before the shot, cancel and show why.
+  useEffect(() => {
+    if (phase === "countdown" && !ready) setPhase("live");
+  }, [phase, ready]);
 
   // 3-2-1, then flash + grab.
   useEffect(() => {
@@ -106,11 +115,11 @@ export default function CaptureScreen() {
         }
       >
         <div className="flex flex-1 flex-col items-center justify-center text-center">
-          <div className="flex size-28 items-center justify-center rounded-full bg-bad-50 text-bad">
-            <IconCamera className="size-14" />
+          <div className="flex size-20 items-center justify-center rounded-full bg-coral/10 text-coral tall:size-24">
+            <IconCamera className="size-10" />
           </div>
-          <h1 className="mt-6 text-[32px] font-bold text-brand">{e.title}</h1>
-          <p className="mt-3 max-w-xl text-[22px] text-muted">{e.body}</p>
+          <h1 className="t-title mt-6 text-fg">{e.title}</h1>
+          <p className="t-lead mt-3 max-w-[34ch]">{e.body}</p>
         </div>
       </ScreenLayout>
     );
@@ -140,55 +149,160 @@ export default function CaptureScreen() {
             <Button variant="secondary" onClick={goBack} aria-label={t.back} disabled={phase === "countdown"}>
               <IconBack />
             </Button>
-            <Button className="flex-1" disabled={phase === "countdown"} onClick={startCountdown}>
+            <Button className="flex-1" disabled={!canCapture} onClick={() => canCapture && startCountdown()}>
               <IconCamera /> {phase === "countdown" ? count || "" : t.capture}
             </Button>
           </>
         )
       }
     >
-      <div className="mb-3 flex items-center gap-2">
-        {SHOTS.map((s, i) => (
-          <div
-            key={s.id}
-            className={`flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-[18px] font-semibold ${
-              i === idx && phase !== "video" ? "bg-brand text-white" : captures[s.id] ? "bg-brand-50 text-brand" : "bg-line/60 text-muted"
-            }`}
-          >
-            {captures[s.id] && <IconCheck className="size-5" />}
-            {t.shotNames[s.id]}
-          </div>
-        ))}
-      </div>
-      <p className="mb-3 min-h-[2.9em] text-center text-[22px] font-semibold">
-        {phase !== "video" && <span className="text-muted">{fmt(t.shotProgress, { n: idx + 1, total: SHOTS.length })} · </span>}
-        {instruction}
-      </p>
+      {/* Shot tabs: the pose glyph makes front / left / right readable at a glance. */}
+      <ol className="mb-4 grid grid-cols-3 gap-3 tall:mb-6 tall:gap-4">
+        {SHOTS.map((s, i) => {
+          const on = i === idx && phase !== "video";
+          const done = !!captures[s.id];
+          return (
+            <li
+              key={s.id}
+              aria-current={on ? "step" : undefined}
+              className={`relative flex min-h-15 items-center gap-3 rounded-xl border px-3 transition-colors duration-200 tall:min-h-[76px] tall:px-4 ${
+                on ? "border-mint bg-surface text-fg shadow-card ring-1 ring-mint" : done ? "border-hair bg-surface text-fg-2" : "border-hair bg-surface-2 text-fg-3"
+              }`}
+            >
+              <PoseGlyph turn={s.turn} className="size-10 shrink-0 tall:size-12" />
+              <span className="min-w-0">
+                <span className="block text-[12px] font-semibold tracking-[0.08em] tabular-nums opacity-70 tall:text-[14px]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="block truncate text-[16px] font-medium tall:text-[19px]">{t.shotNames[s.id]}</span>
+              </span>
+              {done && (
+                <span className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-mint text-white tall:size-6">
+                  <IconCheck className="size-3.5" />
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-3xl bg-ink">
-        <CameraView
-          key={camKey}
-          ref={cam}
-          turn={shot.turn}
-          faceCheck={shot.faceCheck}
-          active={phase === "live"}
-          guide={t.guide}
-          onError={onError}
-          onAutoCapture={onAutoCapture}
+      {/* Portrait kiosk: camera and guidance side by side, so instructions stay visible while posing. */}
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-4 sm:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] sm:grid-rows-1 sm:gap-5 tall:gap-6">
+        <div className="relative min-h-0 overflow-hidden rounded-2xl bg-black shadow-card">
+          <CameraView
+            key={camKey}
+            ref={cam}
+            turn={shot.turn}
+            active={phase === "live" || phase === "countdown"}
+            showGuidance={phase === "live"}
+            autoCapture={AUTO_CAPTURE && phase === "live"}
+            goodHint={AUTO_CAPTURE ? t.guide.goodAuto : t.guide.good}
+            guide={t.guide}
+            onError={onError}
+            onAutoCapture={onAutoCapture}
+            onReady={onReady}
+          />
+          {phase === "countdown" && count > 0 && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/25">
+              <span
+                key={count}
+                className="anim-count text-[140px] leading-none font-semibold text-ivory tabular-nums [text-shadow:0_4px_20px_rgba(0,0,0,.5)] tall:text-[190px]"
+              >
+                {count}
+              </span>
+              <span className="mt-2 rounded-full bg-black/55 px-5 py-2 text-[17px] font-medium text-ivory tall:text-[20px]">
+                {t.guide.holdStill}
+              </span>
+            </div>
+          )}
+          {flash > 0 && <div key={flash} className="anim-flash pointer-events-none absolute inset-0 bg-white opacity-0" />}
+          {reviewing && (
+            <>
+              {/* Same framing as the live preview; the uploaded file is still the full, uncropped frame. */}
+              <img src={current.url} alt="" className="mirror anim-fade absolute inset-0 h-full w-full bg-black object-cover" />
+              <span className="anim-fade absolute top-4 left-4 flex items-center gap-2 rounded-full bg-black/60 py-2 pr-4 pl-2.5 text-[15px] font-medium text-ivory tall:text-[18px]">
+                <span className="flex size-6 items-center justify-center rounded-full bg-mint text-white">
+                  <IconCheck className="size-3.5" />
+                </span>
+                {t.shotNames[shot.id]}
+              </span>
+            </>
+          )}
+        </div>
+
+        <GuidePanel
+          t={t}
+          turn={phase === "video" ? "none" : shot.turn}
+          label={phase === "video" ? t.videoTitle : fmt(t.shotProgress, { n: idx + 1, total: SHOTS.length })}
+          instruction={instruction}
         />
-        {phase === "countdown" && count > 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span key={count} className="anim-count text-[160px] leading-none font-bold text-white [text-shadow:0_2px_8px_rgba(0,0,0,.5)]">
-              {count}
-            </span>
-          </div>
-        )}
-        {flash > 0 && <div key={flash} className="anim-flash pointer-events-none absolute inset-0 bg-white opacity-0" />}
-        {reviewing && (
-          <img src={current.url} alt="" className="mirror anim-fade absolute inset-0 h-full w-full bg-ink object-contain" />
-        )}
       </div>
+
     </ScreenLayout>
+  );
+}
+
+/** Current-shot pose and instruction plus the Do / Don't checklist, shown beside the live preview. */
+function GuidePanel({
+  t,
+  turn,
+  label,
+  instruction,
+}: {
+  t: ReturnType<typeof useStrings>;
+  turn: "none" | "left" | "right";
+  label: string;
+  instruction: string;
+}) {
+  return (
+    <aside className="flex max-h-[40vh] min-h-0 flex-col overflow-y-auto rounded-2xl border border-hair bg-surface shadow-card sm:max-h-none">
+      <div className="flex items-start gap-4 border-b border-hair bg-surface-2 px-5 py-4 tall:px-7 tall:py-6">
+        <PoseGlyph turn={turn} className="size-12 shrink-0 text-fg tall:size-16" />
+        <div className="min-w-0">
+          <p className="t-kicker">{label}</p>
+          <p aria-live="polite" className="mt-1 text-[17px] leading-[1.35] font-semibold text-fg tall:text-[22px]">
+            {instruction}
+          </p>
+        </div>
+      </div>
+      <GuideList good heading={t.camDosHeading} items={t.camDos} />
+      <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
+      {/* What actually gates Capture, so a disabled button is never a surprise. */}
+      <section className="mt-auto border-t border-hair bg-surface-2 px-5 py-4 tall:px-7 tall:py-6">
+        <h2 className="t-kicker mb-2 tall:mb-3">{t.camAutoHeading}</h2>
+        <ul>
+          {t.camAuto.map((it) => (
+            <li key={it} className="flex items-center gap-3 py-1 text-[15px] leading-snug text-fg-2 tall:py-2 tall:text-[19px]">
+              <span className="size-1.5 shrink-0 rounded-full bg-mint" />
+              {it}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </aside>
+  );
+}
+
+function GuideList({ good, heading, items, divider = false }: { good: boolean; heading: string; items: string[]; divider?: boolean }) {
+  const Icon = good ? IconCheck : IconX;
+  return (
+    <section className={`px-5 py-3.5 tall:px-7 tall:py-6 ${divider ? "border-t border-hair" : ""}`}>
+      <h2 className={`t-kicker mb-2 tall:mb-3 ${good ? "text-mint" : "text-coral"}`}>{heading}</h2>
+      <ul>
+        {items.map((it) => (
+          <li key={it} className="flex items-start gap-3 py-1.5 text-[17px] leading-snug text-fg tall:py-3 tall:text-[22px]">
+            <span
+              className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-full tall:size-7 ${
+                good ? "bg-mint/10 text-mint" : "bg-coral/10 text-coral"
+              }`}
+            >
+              <Icon className="size-3.5 tall:size-4" />
+            </span>
+            {it}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -3,7 +3,7 @@
 A full-screen portrait web app that collects three face photos plus a short health form and consent from each participant, for training the atreya.ai metabolic-health model. It is built for low-spec kiosks (2 GB RAM, weak CPU/GPU, slow Wi-Fi). There are no accounts: anyone at the kiosk can use it, and the kiosk forgets everything after each participant.
 
 - **Stack:** Next.js 16 (App Router) with TypeScript and Tailwind 4. Storage is a **Google Apps Script web app** bound to the response Sheet, which writes the row and saves images to Drive. No Google Cloud project, service account or private key is needed.
-- **Runtime dependencies (3):** `next`, `react`, `react-dom`. Dev-only: `typescript`, `@types/react`, `@types/node`, `tailwindcss`, `@tailwindcss/postcss`.
+- **Runtime dependencies (4):** `next`, `react`, `react-dom`, `@mediapipe/tasks-vision` (face detector, loaded only on the camera steps). Dev-only: `typescript`, `@types/react`, `@types/node`, `tailwindcss`, `@tailwindcss/postcss`.
 - **Browser:** Chromium 111 or newer, the Next 16 baseline. That covers any Android 7+ device with an updated Chrome or WebView.
 
 ```
@@ -80,7 +80,9 @@ npm run size        # gzipped first-load JS report (run after build)
 3. Set the function region to **Mumbai (`bom1`)** to keep latency low for Indian kiosks. Apps Script itself runs in Google's US data centres.
 4. `app/api/submit` sets `maxDuration = 60`. Check that your plan allows that.
 
-The request body cap is 4 MB, which stays under Vercel's 4.5 MB limit. Three photos plus a signature come to roughly 0.6–1.3 MB.
+The request body cap is 4 MB, which stays under Vercel's 4.5 MB limit. Three photos come to roughly 0.5–1.2 MB.
+
+**Face detector assets.** `npm run dev` and `npm run build` first run `scripts/copy-mediapipe.mjs`, which copies the MediaPipe WebAssembly runtime from `node_modules` into `public/mediapipe/wasm-<version>/` (git-ignored). The 230 KB BlazeFace model is committed at `public/mediapipe/`. Both are served from the app's own origin with a one-year immutable cache, so each kiosk downloads the ~13.5 MB runtime (~4 MB gzipped) once. The CSP includes `'wasm-unsafe-eval'` so the runtime can compile; it does not allow JavaScript `eval`. The MediaPipe library also tries to send anonymous usage telemetry to `odml.pa.googleapis.com`; the `connect-src 'self'` policy blocks it (one console error per page load, after which the library stops trying), so no data leaves the kiosk. When upgrading `@mediapipe/tasks-vision`, update `MEDIAPIPE_VERSION` in `lib/config.ts` to match (the copy script fails the build if they differ).
 
 **Any Node host:** run `npm ci && npm run build && npm start` behind an HTTPS reverse proxy such as Caddy or nginx. HTTPS is mandatory because of the camera and the HSTS header.
 
@@ -101,7 +103,7 @@ Security headers are set in `next.config.ts`:
 - Install Chrome (or Fully Kiosk Browser) and open `https://YOUR-DOMAIN/`.
 - **Pre-grant the camera:** open the site once, tap Allow, then check Chrome → Site settings → Camera to confirm the site is listed as allowed.
 - Pin the screen (Settings → Security → App pinning), or use Fully Kiosk's kiosk mode with "Launch on boot".
-- Optional: enable `chrome://flags/#enable-experimental-web-platform-features` to turn on `FaceDetector`. That enables the closer/back/centre prompts and auto-capture on the front shot. Without it, the brightness and sharpness checks plus manual capture still work.
+- Face checks use the bundled MediaPipe detector; no Chrome flags are needed. If the detector cannot start on a device, Capture stays disabled and the participant is asked to call staff (there is deliberately no bypass).
 - Settings: screen timeout set to never (or keep-awake in Fully Kiosk), auto-rotate off, portrait.
 
 **Linux / Raspberry Pi / ChromeOS-style box (Chromium)**
@@ -113,7 +115,6 @@ chromium \
   --disable-session-crashed-bubble --disable-features=TranslateUI \
   --overscroll-history-navigation=0 --disable-pinch \
   --autoplay-policy=no-user-gesture-required \
-  --enable-experimental-web-platform-features   # optional: FaceDetector
 ```
 
 - **Camera pre-grant without a prompt:** add a managed policy, for example in `/etc/chromium/policies/managed/kiosk.json`:
@@ -151,7 +152,7 @@ Under 4× CPU throttling with 2 s latency and ~50 KB/s, the cold first load took
 When a participant emails with a **Reference ID** (for example `ATR-2026-7KQ2MZ`):
 
 1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Reference ID (column O). Note the **Drive Folder Link** (column Q) and the **Submission ID** (column P).
-2. **Delete the images.** Open the folder link. It is named `ATR-2026-7KQ2MZ_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg`, `consent_signature.png` and, if video is enabled, `face_video.webm`. Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
+2. **Delete the images.** Open the folder link. It is named `ATR-2026-7KQ2MZ_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg` and, if video is enabled, `face_video.webm` (submissions made before consent version 1.1 may also hold `consent_signature.png`). Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
 3. **Delete the row.** Right-click the row number → Delete row. Do not just clear the cells.
 4. **Remove downstream copies.** If the data was already exported into a training set, remove it from that dataset and record which model versions included it.
 5. **Log and confirm.** Record the Reference ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
@@ -160,7 +161,7 @@ If the participant has lost their Reference ID, search by name and timestamp, an
 
 ## 7. How a submission works
 
-1. The client sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `front`, `left` and `right` (JPEG), `signature` (PNG, if drawn), `video` (if enabled) and the `website` honeypot field.
+1. The client sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `front`, `left` and `right` (JPEG), `video` (if enabled) and the `website` honeypot field. A `signature` PNG is no longer sent (consent 1.1); one from an older client is still validated and stored.
 2. The server runs its guards in this order:
    - Per-IP rate limit (10 per minute)
    - Content-type check
@@ -194,7 +195,7 @@ If the participant has lost their Reference ID, search by name and timestamp, an
 
 `Timestamp | Patient Name | Age | Gender | Height (cm) | Weight (kgs) | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right` are the existing columns A–N.
 
-These are appended after them: `Reference ID | Submission ID | Drive Folder Link | Consent Version | Consent Timestamp | Signature Link` (columns O–T, 20 columns in total), plus `Face Video` in U when `ENABLE_VIDEO` is on.
+These are appended after them: `Reference ID | Submission ID | Drive Folder Link | Consent Version | Consent Timestamp | Signature Link` (columns O–T, 20 columns in total), plus `Face Video` in U when `ENABLE_VIDEO` is on. `Signature Link` is kept so no column shifts; it is empty from consent version 1.1 onwards.
 
 \* Column I is configurable through `COLUMN_I` in `lib/config.ts`. Set it to `null` to hide the field. The cell is then left empty, so no column ever shifts.
 
@@ -230,7 +231,7 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] Dos screen: Continue is disabled until "I have read this" is ticked.
 - [ ] Details: required-field errors appear, and range errors appear (age 130, HbA1c 25). Numeric keypads appear, and names get no autocorrect or auto-capitalisation.
 - [ ] Age under 18 switches the age checkbox to the parent/guardian wording.
-- [ ] Signature: Continue is blocked until a signature is drawn, and Clear works.
+- [ ] Consent: all statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.1-…` and a Consent Timestamp.
 - [ ] Review: each Edit link goes to its step, and Continue returns straight to Review.
 - [ ] Success: the Reference ID is shown, and the kiosk auto-resets after 15 s. Afterwards the camera light is off and Back does not reveal earlier data.
 - [ ] 90 s with no touch brings up a 10 s countdown, then the kiosk resets. Tapping "I'm still here" cancels it.
@@ -242,6 +243,11 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] Camera permission denied: the friendly error screen appears and Try again works once permission is allowed.
 - [ ] No camera, or camera in use by another app: the matching message appears.
 - [ ] Low light shows "Too dark". A lamp behind the participant shows "Too bright". Moving shows "Hold still".
+- [ ] Capture is enabled as soon as a face is clearly visible with even light, at any comfortable distance and anywhere in the picture (the oval is a guide only). Nothing captures by itself (`AUTO_CAPTURE` is off): the participant taps Capture.
+- [ ] A second person in the frame, too dark/too bright, glare, or one side of the face in shadow (front shot) each disable Capture with their own message. **Calibrate on site:** `sideShadowMax`, `overexposedMax` and the `*ScoreMin` values in `lib/config.ts` were tuned on test images, not real participants.
+- [ ] Letting someone step into the frame during the 3-2-1 cancels the countdown.
+
+What is detected and what is not: the detector checks that exactly one face is in the frame and that it is clearly visible (detection confidence); lighting is measured on that face (dark, bright, glare, side shadow). Distance, position in the oval and head turn are **not** enforced; the oval and turn arrows are guidance. **Glasses, masks, caps and hair over the face are not detected** (no lightweight model does this reliably, and a cap check would also flag turbans and headscarves); they are shown as Do/Don't instructions beside the camera. The detector finds faces up to roughly 2 m from the camera; much further away, it reports no face.
 - [ ] Backgrounding the tab and returning: the camera resumes and the check loop restarts.
 - [ ] Captured JPEGs are 1280 px or less on the long edge, roughly 400 KB or under, and **not** mirrored. Check the Drive file.
 
@@ -261,9 +267,10 @@ app/
 components/
   Kiosk.tsx                flow shell: header, step indicator, language toggle, start-over, idle guard
   KioskProvider.tsx        useReducer + Context state (memory only), blob-URL lifecycle
-  IdleGuard.tsx, SignaturePad.tsx, lazy.ts
+  IdleGuard.tsx, lazy.ts
   screens/                 About, Dos, Capture (lazy), Details, Consent, Review, Success
-  camera/                  CameraView (memoised), FaceOverlay, checks.ts (pixel checks, capture)
+  camera/                  CameraView (memoised), FaceOverlay, checks.ts (pixel checks, prompt rules, capture),
+                           detector.ts (lazy, shared MediaPipe face detector)
   ui/                      Button, ScreenLayout, Dialog, controls, icons
 lib/
   config.ts, strings.ts, validate.ts, appsScript.ts, rateLimit.ts, time.ts, submit.ts

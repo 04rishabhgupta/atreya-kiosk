@@ -2,9 +2,10 @@
 // and the size of the lazily loaded camera chunk. Run after `npm run build`.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url)); // URL.pathname gives "/C:/..." on Windows
 const html = readFileSync(join(root, ".next/server/app/index.html"), "utf8");
 const gz = (buf) => gzipSync(buf, { level: 9 }).length;
 const kb = (n) => `${(n / 1024).toFixed(1)} KB`;

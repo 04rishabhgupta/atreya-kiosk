@@ -5,3 +5,5 @@ out
 .env.local
 *.tsbuildinfo
 next-env.d.ts
+# MediaPipe runtime, copied from node_modules by scripts/copy-mediapipe.mjs
+public/mediapipe/wasm-*/

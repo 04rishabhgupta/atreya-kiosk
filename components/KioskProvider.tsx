@@ -34,7 +34,6 @@ export interface State {
   consent: Consent;
   consentedAt: string | null;
   captures: Partial<Record<ShotId, Capture>>;
-  signature: BlobRef | null;
   video: BlobRef | null;
   submissionKey: string;
   submit: SubmitState;
@@ -51,7 +50,6 @@ type Action =
   | { type: "consent"; patch: Partial<Consent> }
   | { type: "consentedAt"; at: string }
   | { type: "capture"; id: ShotId; capture: Capture | null }
-  | { type: "signature"; value: BlobRef | null }
   | { type: "video"; value: BlobRef | null }
   | { type: "submit"; patch: Partial<SubmitState> }
   | { type: "submitted"; referenceId: string }
@@ -81,7 +79,6 @@ function initial(session: number): State {
     consent: emptyConsent,
     consentedAt: null,
     captures: {},
-    signature: null,
     video: null,
     submissionKey: newKey(),
     submit: idleSubmit,
@@ -114,8 +111,6 @@ function reducer(s: State, a: Action): State {
       return { ...s, consentedAt: a.at };
     case "capture":
       return { ...s, captures: { ...s.captures, [a.id]: a.capture ?? undefined } };
-    case "signature":
-      return { ...s, signature: a.value };
     case "video":
       return { ...s, video: a.value };
     case "submit":
@@ -131,7 +126,6 @@ function reducer(s: State, a: Action): State {
 
 function revokeAll(s: State) {
   for (const c of Object.values(s.captures)) if (c) URL.revokeObjectURL(c.url);
-  if (s.signature) URL.revokeObjectURL(s.signature.url);
   if (s.video) URL.revokeObjectURL(s.video.url);
 }
 
@@ -141,7 +135,6 @@ export interface Actions {
   back(): void;
   go(step: number, fromReview?: boolean): void;
   setCapture(id: ShotId, c: Capture | null): void;
-  setSignature(blob: Blob | null): void;
   setVideo(blob: Blob | null): void;
   reset(): void;
 }
@@ -170,7 +163,6 @@ export function KioskProvider({ children }: { children: React.ReactNode }) {
         if (old && old.url !== c?.url) URL.revokeObjectURL(old.url);
         dispatch({ type: "capture", id, capture: c });
       },
-      setSignature: (blob) => dispatch({ type: "signature", value: swapBlob(ref.current.signature, blob) }),
       setVideo: (blob) => dispatch({ type: "video", value: swapBlob(ref.current.video, blob) }),
       reset() {
         revokeAll(ref.current);

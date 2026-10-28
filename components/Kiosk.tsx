@@ -14,7 +14,7 @@ import ReviewScreen from "./screens/ReviewScreen";
 import SuccessScreen from "./screens/SuccessScreen";
 import { Button } from "./ui/Button";
 import { Dialog } from "./ui/Dialog";
-import { IconGlobe } from "./ui/icons";
+import { BrandMark, IconGlobe, IconRefresh } from "./ui/icons";
 
 // Only the camera step pulls in camera code, and only on the client.
 const CaptureScreen = dynamic(loadCaptureScreen, {
@@ -24,7 +24,7 @@ const CaptureScreen = dynamic(loadCaptureScreen, {
 
 function Loading() {
   const t = useStrings();
-  return <div className="flex flex-1 items-center justify-center text-muted">{t.loading}</div>;
+  return <div className="flex flex-1 items-center justify-center text-[17px] text-fg-3">{t.loading}</div>;
 }
 
 export default function Kiosk() {
@@ -80,31 +80,36 @@ function Shell() {
 
   return (
     <div className="app-h flex flex-col overflow-hidden">
-      <header className="bg-card px-6 pt-4 pb-3">
-        <div className="flex items-center gap-3">
-          <span className="text-[26px] font-bold tracking-tight text-brand">
-            atreya<span className="text-accent">.ai</span>
+      <header className="shrink-0 border-b border-hair bg-surface px-6 sm:px-8 tall:px-12">
+        <div className="flex min-h-[72px] items-center gap-2 tall:min-h-[88px]">
+          <span className="flex items-center gap-2.5">
+            <BrandMark className="size-7 tall:size-8" />
+            <span className="text-[18px] font-semibold tracking-[-0.01em] text-brand tall:text-[21px]">
+              atreya<span className="text-ember">.ai</span>
+            </span>
           </span>
           <div className="flex-1" />
           <button
             type="button"
             onClick={() => a.dispatch({ type: "lang", lang: s.lang === "en" ? "hi" : "en" })}
-            className="flex min-h-14 items-center gap-2 rounded-xl border-2 border-line px-4 font-semibold text-brand active:bg-brand-50"
+            className="flex min-h-12 items-center gap-2 rounded-full border border-hair-strong px-4 text-[15px] font-medium text-fg-2 active:bg-surface-2 tall:min-h-14 tall:px-5 tall:text-[17px]"
           >
-            <IconGlobe />
+            <IconGlobe className="size-[17px]" />
             {t.langToggle}
           </button>
           {inFlow && s.submit.status !== "sending" && (
             <button
               type="button"
               onClick={() => setConfirmReset(true)}
-              className="min-h-14 rounded-xl px-4 font-semibold text-muted active:bg-brand-50"
+              className="flex min-h-12 items-center gap-2 rounded-full px-4 text-[15px] font-medium text-fg-3 active:bg-surface-2 tall:min-h-14 tall:text-[17px]"
             >
+              <IconRefresh className="size-[17px]" />
               {t.startOver}
             </button>
           )}
         </div>
-        <StepIndicator step={s.step} label={t.stepNames[s.step] ?? ""} stepOf={t.stepOf} />
+        {/* The welcome screen is an invitation, not a form step: no progress there. */}
+        {s.step !== STEPS.about && <StepIndicator step={s.step} label={t.stepNames[s.step] ?? ""} stepOf={t.stepOf} />}
       </header>
 
       <main key={`${s.session}-${s.step}`} className="flex min-h-0 flex-1 flex-col">
@@ -126,7 +131,7 @@ function Shell() {
             </>
           }
         >
-          <p className="text-[22px]">{t.startOverBody}</p>
+          <p>{t.startOverBody}</p>
         </Dialog>
       )}
     </div>
@@ -134,21 +139,22 @@ function Shell() {
 }
 
 function StepIndicator({ step, label, stepOf }: { step: number; label: string; stepOf: string }) {
+  const pct = ((step + 1) / STEP_COUNT) * 100;
+  const pad = (n: number) => String(n).padStart(2, "0");
   return (
-    <div className="mt-3">
-      <div className="flex gap-1.5" aria-hidden>
-        {Array.from({ length: STEP_COUNT }, (_, i) => (
-          <div key={i} className="h-2 flex-1 overflow-hidden rounded-full bg-line">
-            <div
-              className="h-full origin-left rounded-full bg-brand transition-transform duration-300"
-              style={{ transform: `scaleX(${i <= step ? 1 : 0})` }}
-            />
-          </div>
-        ))}
-      </div>
-      <p className="mt-2 text-[18px] text-muted">
-        {fmt(stepOf, { n: step + 1, total: STEP_COUNT })} · <span className="font-semibold text-ink">{label}</span>
+    <div className="pb-4 tall:pb-5">
+      <p className="mb-3 flex items-baseline gap-3" aria-label={`${fmt(stepOf, { n: step + 1, total: STEP_COUNT })} · ${label}`}>
+        <span className="text-[17px] leading-none font-semibold text-fg tabular-nums tall:text-[20px]">{pad(step + 1)}</span>
+        <span className="text-[14px] text-fg-3 tabular-nums tall:text-[16px]">/ {pad(STEP_COUNT)}</span>
+        <span className="ml-1 text-[15px] font-medium text-fg-2 tall:text-[17px]">{label}</span>
       </p>
+      <div className="relative h-[3px] rounded-full bg-surface-3" aria-hidden>
+        <div className="absolute inset-y-0 left-0 rounded-full bg-mint transition-[width] duration-300" style={{ width: `${pct}%` }} />
+        <div
+          className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-surface bg-ember transition-[left] duration-300"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }

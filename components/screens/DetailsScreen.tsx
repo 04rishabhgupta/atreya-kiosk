@@ -7,8 +7,8 @@ import { hasErrors, validateDetails, type Details, type FieldError } from "@/lib
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
 import { Field, inputClass, Segmented, TextInput } from "../ui/controls";
-import { IconBack } from "../ui/icons";
-import { ScreenLayout } from "../ui/ScreenLayout";
+import { IconBack, IconChevronDown } from "../ui/icons";
+import { ScreenLayout, Section } from "../ui/ScreenLayout";
 
 export const errText = (t: Strings, e?: FieldError) =>
   e ? fmt(t.err[e.key], { min: e.min ?? "", max: e.max ?? "" }) : undefined;
@@ -56,6 +56,7 @@ export default function DetailsScreen() {
   return (
     <ScreenLayout
       title={t.detailsTitle}
+      intro={t.detailsIntro}
       actions={
         <>
           <Button variant="secondary" onClick={back} aria-label={t.back}>
@@ -67,97 +68,108 @@ export default function DetailsScreen() {
         </>
       }
     >
-      <p className="mb-5 text-muted">{t.detailsIntro}</p>
+      <Section title={t.detailsSecAbout}>
+        <div className="-mb-5 tall:-mb-7">
+          <Field id="name" label={t.f.name} error={err("name")}>
+            <TextInput
+              id="name"
+              enterKeyHint="next"
+              maxLength={80}
+              value={d.name}
+              invalid={!!err("name")}
+              onChange={(e) => set({ name: e.target.value })}
+              onBlur={blur("name")}
+            />
+          </Field>
 
-      <Field id="name" label={t.f.name} error={err("name")}>
-        <TextInput
-          id="name"
-          enterKeyHint="next"
-          maxLength={80}
-          value={d.name}
-          invalid={!!err("name")}
-          onChange={(e) => set({ name: e.target.value })}
-          onBlur={blur("name")}
-        />
-      </Field>
+          <div className="grid grid-cols-2 gap-x-5">
+            {num("age", t.f.age, true)}
+            <Field id="gender" label={t.f.gender} error={err("gender")}>
+              <Segmented
+                id="gender"
+                value={d.gender}
+                invalid={!!err("gender")}
+                options={GENDERS.map((g) => ({ value: g.value, label: g[lang] }))}
+                onChange={(v) => {
+                  set({ gender: v });
+                  blur("gender")();
+                }}
+              />
+            </Field>
+            {num("heightCm", t.f.heightCm)}
+            {num("weightKg", t.f.weightKg)}
+          </div>
+        </div>
+      </Section>
 
-      <div className="grid grid-cols-2 gap-x-4">
-        {num("age", t.f.age, true)}
-        <div />
-        {num("heightCm", t.f.heightCm)}
-        {num("weightKg", t.f.weightKg)}
-      </div>
+      <Section title={t.detailsSecHealth} className="mt-4 tall:mt-6">
+        <div className="-mb-5 tall:-mb-7">
+          <Field id="diabeticCategory" label={t.f.diabeticCategory} error={err("diabeticCategory")}>
+            <div className="relative">
+              <select
+                id="diabeticCategory"
+                value={d.diabeticCategory}
+                aria-invalid={!!err("diabeticCategory") || undefined}
+                className={`${inputClass(!!err("diabeticCategory"))} appearance-none pr-14 ${d.diabeticCategory ? "" : "text-fg-3"}`}
+                onChange={(e) => set({ diabeticCategory: e.target.value })}
+                onBlur={blur("diabeticCategory")}
+              >
+                <option value="" disabled>
+                  {t.select}
+                </option>
+                {DIABETIC_CATEGORIES.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o[lang]}
+                  </option>
+                ))}
+              </select>
+              <IconChevronDown className="pointer-events-none absolute top-1/2 right-5 size-5 -translate-y-1/2 text-fg-3" />
+            </div>
+          </Field>
 
-      <Field id="gender" label={t.f.gender} error={err("gender")}>
-        <Segmented
-          id="gender"
-          value={d.gender}
-          invalid={!!err("gender")}
-          options={GENDERS.map((g) => ({ value: g.value, label: g[lang] }))}
-          onChange={(v) => {
-            set({ gender: v });
-            blur("gender")();
-          }}
-        />
-      </Field>
+          <div className="grid grid-cols-2 gap-x-5">
+            {num("hba1c", t.f.hba1c, false, t.optionalHint)}
+            {num("rbs", t.f.rbs, true, t.optionalHint)}
+            {COLUMN_I && num("columnI", COLUMN_I[lang], true, t.optionalHint)}
+          </div>
 
-      <Field id="diabeticCategory" label={t.f.diabeticCategory} error={err("diabeticCategory")}>
-        <select
-          id="diabeticCategory"
-          value={d.diabeticCategory}
-          aria-invalid={!!err("diabeticCategory") || undefined}
-          className={inputClass(!!err("diabeticCategory"))}
-          onChange={(e) => set({ diabeticCategory: e.target.value })}
-          onBlur={blur("diabeticCategory")}
-        >
-          <option value="" disabled>
-            {t.select}
-          </option>
-          {DIABETIC_CATEGORIES.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o[lang]}
-            </option>
-          ))}
-        </select>
-      </Field>
+          <Field id="onMedicine" label={t.f.onMedicine} error={err("onMedicine")}>
+            <Segmented
+              id="onMedicine"
+              value={d.onMedicine}
+              options={[
+                { value: "Yes" as const, label: t.yes },
+                { value: "No" as const, label: t.no },
+              ]}
+              onChange={(v) => set({ onMedicine: v, medicineDetails: v === "No" ? "" : d.medicineDetails })}
+            />
+          </Field>
 
-      <div className="grid grid-cols-2 gap-x-4">
-        {num("hba1c", t.f.hba1c, false, t.optionalHint)}
-        {num("rbs", t.f.rbs, true, t.optionalHint)}
-        {COLUMN_I && num("columnI", COLUMN_I[lang], true, t.optionalHint)}
-      </div>
+          {d.onMedicine === "Yes" && (
+            <Field id="medicineDetails" label={t.f.medicineDetails} error={err("medicineDetails")}>
+              <textarea
+                id="medicineDetails"
+                rows={3}
+                maxLength={300}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={t.medicinePlaceholder}
+                value={d.medicineDetails}
+                className={`${inputClass(!!err("medicineDetails"))} py-3`}
+                onChange={(e) => set({ medicineDetails: e.target.value })}
+                onBlur={blur("medicineDetails")}
+              />
+            </Field>
+          )}
+        </div>
+      </Section>
 
-      <Field id="onMedicine" label={t.f.onMedicine} error={err("onMedicine")}>
-        <Segmented
-          id="onMedicine"
-          value={d.onMedicine}
-          options={[
-            { value: "Yes" as const, label: t.yes },
-            { value: "No" as const, label: t.no },
-          ]}
-          onChange={(v) => set({ onMedicine: v, medicineDetails: v === "No" ? "" : d.medicineDetails })}
-        />
-      </Field>
-
-      {d.onMedicine === "Yes" && (
-        <Field id="medicineDetails" label={t.f.medicineDetails} error={err("medicineDetails")}>
-          <textarea
-            id="medicineDetails"
-            rows={3}
-            maxLength={300}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder={t.medicinePlaceholder}
-            value={d.medicineDetails}
-            className={`${inputClass(!!err("medicineDetails"))} py-3`}
-            onChange={(e) => set({ medicineDetails: e.target.value })}
-            onBlur={blur("medicineDetails")}
-          />
-        </Field>
+      {submitted && hasErrors(errors) && (
+        <p role="alert" className="mt-4 rounded-xl border border-coral/30 bg-coral/[0.06] px-5 py-4 text-[16px] font-medium text-coral tall:text-[19px]">
+          {t.fixErrors}
+        </p>
       )}
-
-      {submitted && hasErrors(errors) && <p className="font-semibold text-bad">{t.fixErrors}</p>}
     </ScreenLayout>
   );
 }
