@@ -96,14 +96,8 @@ const en = {
 
   detailsTitle: "Your details",
   detailsIntro: "Fields marked * are required.",
-  detailsSecAbout: "About you",
   detailsSecHealth: "Health information",
   f: {
-    name: "Full name *",
-    age: "Age (years) *",
-    gender: "Gender *",
-    heightCm: "Height (cm) *",
-    weightKg: "Weight (kg) *",
     diabeticCategory: "Diabetes status *",
     hba1c: "HbA1c (%)",
     rbs: "Random blood sugar (mg/dL)",
@@ -117,7 +111,6 @@ const en = {
   medicinePlaceholder: "e.g. Metformin 500 mg",
   err: {
     required: "This is required",
-    name: "Please use letters only",
     number: "Please enter a number",
     integer: "Please enter a whole number",
     range: "Enter a value between {min} and {max}",
@@ -138,7 +131,7 @@ const en = {
   fullText: [
     {
       h: "1. What we collect",
-      p: "Three photographs of your face (front, left and right), your name, age, gender, height, weight, diabetes status, optional blood test values and medicine information, and the time of consent.",
+      p: "Three photographs of your face (front, left and right), your diabetes status, optional blood test values and medicine information, and the time of consent.",
     },
     {
       h: "2. Why we collect it",
@@ -169,8 +162,6 @@ const en = {
   consentAgreeIntro: "By ticking the box below, you confirm that:",
   cTraining: "I agree that my face photos and health details may be used to train the atreya.ai AI model",
   cNotDiagnosis: "I understand this is not a medical diagnosis",
-  cAdult: "I am 18 or older",
-  cGuardian: "I am the parent or legal guardian of the participant and I consent on their behalf",
   cAll: "I have read all of the information above and I give my consent",
   consentConfirm: "Agree and continue",
 
@@ -292,14 +283,8 @@ const hi: Strings = {
 
   detailsTitle: "आपकी जानकारी",
   detailsIntro: "* वाले खाने ज़रूरी हैं।",
-  detailsSecAbout: "आपके बारे में",
   detailsSecHealth: "स्वास्थ्य जानकारी",
   f: {
-    name: "पूरा नाम *",
-    age: "उम्र (वर्ष) *",
-    gender: "लिंग *",
-    heightCm: "लंबाई (सेमी) *",
-    weightKg: "वज़न (किलो) *",
     diabeticCategory: "मधुमेह की स्थिति *",
     hba1c: "HbA1c (%)",
     rbs: "रैंडम ब्लड शुगर (mg/dL)",
@@ -313,7 +298,6 @@ const hi: Strings = {
   medicinePlaceholder: "जैसे मेटफ़ॉर्मिन 500 mg",
   err: {
     required: "यह ज़रूरी है",
-    name: "कृपया केवल अक्षरों का उपयोग करें",
     number: "कृपया एक संख्या लिखें",
     integer: "कृपया पूर्ण संख्या लिखें",
     range: "{min} से {max} के बीच का मान लिखें",
@@ -334,7 +318,7 @@ const hi: Strings = {
   fullText: [
     {
       h: "1. हम क्या लेते हैं",
-      p: "आपके चेहरे की तीन फ़ोटो (सामने, बाएँ और दाएँ), आपका नाम, उम्र, लिंग, लंबाई, वज़न, मधुमेह की स्थिति, वैकल्पिक ब्लड टेस्ट मान और दवा की जानकारी, और सहमति का समय।",
+      p: "आपके चेहरे की तीन फ़ोटो (सामने, बाएँ और दाएँ), आपकी मधुमेह की स्थिति, वैकल्पिक ब्लड टेस्ट मान और दवा की जानकारी, और सहमति का समय।",
     },
     {
       h: "2. हम इसे क्यों लेते हैं",
@@ -364,8 +348,6 @@ const hi: Strings = {
   consentAgreeIntro: "नीचे दिए बॉक्स पर टिक करके आप पुष्टि करते हैं कि:",
   cTraining: "मैं सहमत हूँ कि मेरे चेहरे की फ़ोटो और स्वास्थ्य जानकारी atreya.ai AI मॉडल को प्रशिक्षित करने में उपयोग की जा सकती है",
   cNotDiagnosis: "मैं समझता/समझती हूँ कि यह मेडिकल निदान नहीं है",
-  cAdult: "मेरी उम्र 18 वर्ष या उससे अधिक है",
-  cGuardian: "मैं प्रतिभागी का माता-पिता या कानूनी अभिभावक हूँ और उनकी ओर से सहमति देता/देती हूँ",
   cAll: "मैंने ऊपर दी गई सारी जानकारी पढ़ ली है और मैं अपनी सहमति देता/देती हूँ",
   consentConfirm: "सहमत हूँ, आगे बढ़ें",
 

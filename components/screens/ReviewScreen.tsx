@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { COLUMN_I, CONSENT_VERSION, DIABETIC_CATEGORIES, ENABLE_VIDEO, GENDERS, SHOTS } from "@/lib/config";
+import { COLUMN_I, CONSENT_VERSION, DIABETIC_CATEGORIES, ENABLE_VIDEO, SHOTS } from "@/lib/config";
 import { fmt } from "@/lib/strings";
 import { hasErrors, validateConsent, validateDetails } from "@/lib/validate";
 import { postSubmission } from "@/lib/submit";
@@ -40,14 +40,9 @@ export default function ReviewScreen() {
   const { details: d, consent: c, submit } = s;
   const sending = submit.status === "sending";
   const canEdit = !sending && !submit.locked;
-  const label = (opts: typeof GENDERS, v: string) => opts.find((o) => o.value === v)?.[s.lang] ?? v;
+  const label = (opts: typeof DIABETIC_CATEGORIES, v: string) => opts.find((o) => o.value === v)?.[s.lang] ?? v;
 
   const rows: [string, string][] = [
-    [t.f.name, d.name.trim()],
-    [t.f.age, d.age],
-    [t.f.gender, label(GENDERS, d.gender)],
-    [t.f.heightCm, d.heightCm],
-    [t.f.weightKg, d.weightKg],
     [t.f.diabeticCategory, label(DIABETIC_CATEGORIES, d.diabeticCategory)],
     [t.f.hba1c, d.hba1c],
     ...(COLUMN_I ? ([[COLUMN_I[s.lang], d.columnI]] as [string, string][]) : []),
@@ -57,7 +52,7 @@ export default function ReviewScreen() {
 
   const doSubmit = async () => {
     if (sending) return;
-    // Edits from Review can invalidate an earlier step (e.g. age now under 18): send them back there.
+    // Edits from Review can leave an earlier step incomplete: send them back there.
     if (hasErrors(validateDetails(d))) return go(STEPS.details, true);
     if (hasErrors(validateConsent(c)) || !s.consentedAt) return go(STEPS.consent, true);
     if (SHOTS.some((sh) => !s.captures[sh.id])) return go(STEPS.camera, true);

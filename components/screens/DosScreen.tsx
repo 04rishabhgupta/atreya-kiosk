@@ -39,17 +39,20 @@ export default function DosScreen() {
     >
       <div className="flex flex-1 flex-col">
         <Section title={t.shotsHeading}>
-          <ol className="grid grid-cols-3 gap-4 tall:gap-6">
+          {/* Phones: one row per photo (drawing beside its text); wider screens: three columns. */}
+          <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 tall:gap-6">
             {SHOTS.map((s, i) => (
-              <li key={s.id}>
-                <div className="flex aspect-square items-center justify-center rounded-xl bg-surface-2 text-fg">
+              <li key={s.id} className="flex items-center gap-4 sm:block">
+                <div className="flex aspect-square w-[72px] shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg sm:w-auto">
                   <PoseGlyph turn={s.turn} className="w-[62%]" />
                 </div>
-                <p className="mt-3 flex items-baseline gap-2 tall:mt-4">
-                  <span className="text-[14px] font-semibold text-fg-3 tabular-nums tall:text-[17px]">{String(i + 1).padStart(2, "0")}</span>
-                  <span className="text-[16px] font-semibold text-fg tall:text-[19px]">{t.shotNames[s.id]}</span>
-                </p>
-                <p className="mt-1 text-[14.5px] leading-snug text-fg-2 tall:text-[17px]">{t.shotInstr[s.turn]}</p>
+                <div className="min-w-0">
+                  <p className="flex items-baseline gap-2 sm:mt-3 tall:mt-4">
+                    <span className="text-[14px] font-semibold text-fg-3 tabular-nums tall:text-[17px]">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="text-[16px] font-semibold text-fg tall:text-[19px]">{t.shotNames[s.id]}</span>
+                  </p>
+                  <p className="mt-1 text-[14.5px] leading-snug text-fg-2 tall:text-[17px]">{t.shotInstr[s.turn]}</p>
+                </div>
               </li>
             ))}
           </ol>

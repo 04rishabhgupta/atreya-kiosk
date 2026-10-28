@@ -157,7 +157,7 @@ When a participant emails with a **Reference ID** (for example `ATR-2026-7KQ2MZ`
 4. **Remove downstream copies.** If the data was already exported into a training set, remove it from that dataset and record which model versions included it.
 5. **Log and confirm.** Record the Reference ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
 
-If the participant has lost their Reference ID, search by name and timestamp, and verify their identity before deleting anything.
+If the participant has lost their Reference ID, the row can only be narrowed down by its timestamp: from consent version 1.2 the kiosk collects no name or other identifying details. Verify the request carefully before deleting anything.
 
 ## 7. How a submission works
 
@@ -193,7 +193,7 @@ If the participant has lost their Reference ID, search by name and timestamp, an
 
 ### Sheet columns
 
-`Timestamp | Patient Name | Age | Gender | Height (cm) | Weight (kgs) | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right` are the existing columns A–N.
+`Timestamp | Patient Name | Age | Gender | Height (cm) | Weight (kgs) | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right` are the existing columns A–N. From consent version 1.2, Patient Name, Age, Gender, Height and Weight (B–F) are no longer collected and are left empty, so no column shifts.
 
 These are appended after them: `Reference ID | Submission ID | Drive Folder Link | Consent Version | Consent Timestamp | Signature Link` (columns O–T, 20 columns in total), plus `Face Video` in U when `ENABLE_VIDEO` is on. `Signature Link` is kept so no column shifts; it is empty from consent version 1.1 onwards.
 
@@ -229,9 +229,8 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] Tap Submit, kill the Wi-Fi mid-upload, and you get an error with Retry and the edits locked. Restore the Wi-Fi and tap Retry: there is exactly **one** row and **one** folder.
 - [ ] Turning airplane mode on during Review leaves the photos intact, and Retry works.
 - [ ] Dos screen: Continue is disabled until "I have read this" is ticked.
-- [ ] Details: required-field errors appear, and range errors appear (age 130, HbA1c 25). Numeric keypads appear, and names get no autocorrect or auto-capitalisation.
-- [ ] Age under 18 switches the age checkbox to the parent/guardian wording.
-- [ ] Consent: all statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.1-…` and a Consent Timestamp.
+- [ ] Details: only health information is asked (no name, age, gender, height or weight). Diabetes status is required; a range error appears for HbA1c 25. Numeric keypads appear.
+- [ ] Consent: both statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.2-…` and a Consent Timestamp, and Patient Name, Age, Gender, Height and Weight are empty.
 - [ ] Review: each Edit link goes to its step, and Continue returns straight to Review.
 - [ ] Success: the Reference ID is shown, and the kiosk auto-resets after 15 s. Afterwards the camera light is off and Back does not reveal earlier data.
 - [ ] 90 s with no touch brings up a 10 s countdown, then the kiosk resets. Tapping "I'm still here" cancels it.

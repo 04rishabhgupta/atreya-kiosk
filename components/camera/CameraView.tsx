@@ -250,10 +250,10 @@ export const CameraView = memo(function CameraView({
       <video ref={video} className="mirror absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />
       {active && <FaceOverlay w={size.w} h={size.h} level={state.level} turn={turn} />}
       {message && (
-        <div className="absolute inset-x-0 bottom-5 flex justify-center px-4">
+        <div className="absolute inset-x-0 bottom-3 flex justify-center px-3 sm:bottom-5 sm:px-4">
           <p
             aria-live="polite"
-            className={`flex max-w-full items-center gap-2.5 rounded-2xl py-2.5 pr-5 pl-4 text-[17px] leading-snug font-medium text-white tall:py-3 tall:text-[21px] ${
+            className={`flex max-w-full items-center gap-2 rounded-2xl py-2 pr-4 pl-3 text-[14px] leading-snug font-medium text-white sm:gap-2.5 sm:py-2.5 sm:pr-5 sm:pl-4 sm:text-[17px] tall:py-3 tall:text-[21px] ${
               state.level === "good" ? "bg-[#1F7A55]" : "bg-black/75"
             }`}
           >
