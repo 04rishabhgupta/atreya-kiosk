@@ -151,13 +151,13 @@ Under 4× CPU throttling with 2 s latency and ~50 KB/s, the cold first load took
 
 When a participant emails with a **Subject ID** (for example `ATR-7KQ2M-X4P9T`):
 
-1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Subject ID (column B). Note the **Drive Folder Link** (column K).
+1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Subject ID (column B). Note the **Drive Folder Link** (column M in a new sheet).
 2. **Delete the images.** Open the folder link. It is named `ATR-7KQ2M-X4P9T_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg` and, if video is enabled, `face_video.webm`. Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
 3. **Delete the row.** Right-click the row number → Delete row. Do not just clear the cells.
 4. **Remove downstream copies.** If the data was already exported into a training set, remove it from that dataset and record which model versions included it.
 5. **Log and confirm.** Record the Subject ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
 
-If the participant has lost their Subject ID, the row can only be narrowed down by its timestamp: from consent version 1.2 the kiosk collects no name or other identifying details. Verify the request carefully before deleting anything.
+If the participant has lost their Subject ID, the row can only be narrowed down by its timestamp, age and gender: the kiosk collects no name or contact details. Verify the request carefully before deleting anything.
 
 ## 7. How a submission works
 
@@ -193,9 +193,9 @@ If the participant has lost their Subject ID, the row can only be narrowed down 
 
 ### Sheet columns
 
-`Timestamp | Subject ID | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right | Drive Folder Link | Consent Version | Consent Timestamp` (columns A–M, 13 in total), plus `Face Video` in N when `ENABLE_VIDEO` is on.
+`Timestamp | Subject ID | Age | Gender | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right | Drive Folder Link | Consent Version | Consent Timestamp` (columns A–O, 15 in total), plus `Face Video` in P when `ENABLE_VIDEO` is on.
 
-Only collected data has a column. HbA1c, FBS, RBS and medicine are optional, so those cells can be empty.
+Only collected data has a column. The Apps Script places each value by matching the header name in row 1, so columns can be inserted or reordered in the sheet without misaligning rows; a header the sheet lacks is added at its end. HbA1c, FBS, RBS and medicine are optional, so those cells can be empty.
 
 \* Set `COLUMN_I` in `lib/config.ts` to `null` to hide the FBS field. Its column is then dropped and every later column moves one to the left, so do this before the sheet holds real rows.
 
@@ -229,8 +229,9 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] Tap Submit, kill the Wi-Fi mid-upload, and you get an error with Retry and the edits locked. Restore the Wi-Fi and tap Retry: there is exactly **one** row and **one** folder.
 - [ ] Turning airplane mode on during Review leaves the photos intact, and Retry works.
 - [ ] Dos screen: Continue is disabled until "I have read this" is ticked.
-- [ ] Details: only health information is asked (no name, age, gender, height or weight). Diabetes status is required; a range error appears for HbA1c 25. Numeric keypads appear.
-- [ ] Consent: both statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.3-…` and a Consent Timestamp.
+- [ ] Details: age, gender and diabetes status are required; range errors appear for age 130 and HbA1c 25. Numeric keypads appear. No name, height or weight is asked.
+- [ ] Age under 18 switches the age statement on the consent screen to the parent/guardian wording, and unticks consent if it was already given.
+- [ ] Consent: all three statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.4-…` and a Consent Timestamp.
 - [ ] Review: each Edit link goes to its step, and Continue returns straight to Review.
 - [ ] Success: the Subject ID is shown, and the kiosk auto-resets after 15 s. Afterwards the camera light is off and Back does not reveal earlier data.
 - [ ] 90 s with no touch brings up a 10 s countdown, then the kiosk resets. Tapping "I'm still here" cancels it.

@@ -89,6 +89,8 @@ async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promi
   // Link cells (photos, folder) and the Subject ID are filled in by the script.
   const cells: Record<string, string | number> = {
     Timestamp: formatIST(now),
+    Age: num(d.age),
+    Gender: d.gender,
     "Diabetic Category": d.diabeticCategory,
     HbA1c: num(d.hba1c),
     RBS: num(d.rbs),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { COLUMN_I, DIABETIC_CATEGORIES } from "@/lib/config";
+import { COLUMN_I, DIABETIC_CATEGORIES, GENDERS } from "@/lib/config";
 import { fmt, type Strings } from "@/lib/strings";
 import { hasErrors, validateDetails, type Details, type FieldError } from "@/lib/validate";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
@@ -68,7 +68,25 @@ export default function DetailsScreen() {
         </>
       }
     >
-      <Section title={t.detailsSecHealth}>
+      <Section title={t.detailsSecAbout}>
+        <div className="-mb-5 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-5 tall:-mb-7">
+          {num("age", t.f.age, true)}
+          <Field id="gender" label={t.f.gender} error={err("gender")}>
+            <Segmented
+              id="gender"
+              value={d.gender}
+              invalid={!!err("gender")}
+              options={GENDERS.map((g) => ({ value: g.value, label: g[lang] }))}
+              onChange={(v) => {
+                set({ gender: v });
+                blur("gender")();
+              }}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title={t.detailsSecHealth} className="mt-4 tall:mt-6">
         <div className="-mb-5 tall:-mb-7">
           <Field id="diabeticCategory" label={t.f.diabeticCategory} error={err("diabeticCategory")}>
             <div className="relative">

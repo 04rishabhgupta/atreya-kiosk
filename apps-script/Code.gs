@@ -7,8 +7,11 @@
  *   SECRET           long random string, same value as APPS_SCRIPT_SECRET on the Next.js server
  *   DRIVE_FOLDER_ID  folder that receives one subfolder per submission
  *
- * The Next.js server validates everything and decides the column order; this script only
+ * The Next.js server validates everything and sends the column headers it fills; this script only
  * stores files, appends the row, and keeps retries from creating duplicates.
+ *
+ * Values are placed by matching header names in row 1, not by position, so columns can be inserted
+ * or reordered in the sheet without misaligning rows. Headers the sheet lacks are added at the end.
  */
 
 var TAB = "Form_Responses";
@@ -46,8 +49,9 @@ function handle_(req, props) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) return { ok: false, error: "busy" };
   try {
-    var sheet = ensureSheet_(headers);
-    var idCol = headers.indexOf(ID_HEADER) + 1;
+    var layout = ensureSheet_(headers);
+    var sheet = layout.sheet;
+    var idCol = layout.cols.indexOf(ID_HEADER) + 1;
     if (!idCol) return { ok: false, error: "invalid" };
 
     // Already appended by an earlier attempt? The Subject ID is derived from the kiosk's key, so a retry
@@ -90,7 +94,7 @@ function handle_(req, props) {
       cells[f.header] = file.getUrl(); // private: inherits the folder's sharing (named accounts only)
     }
 
-    var row = headers.map(function (h) {
+    var row = layout.cols.map(function (h) {
       var v = cells[h];
       return v === undefined || v === null ? "" : v;
     });
@@ -106,18 +110,27 @@ function handle_(req, props) {
   }
 }
 
-/** Create the tab if missing, widen the grid if needed, add missing headers at the end only. */
+/**
+ * Create the tab if missing and add any of `headers` not yet in row 1 at the end.
+ * Returns the sheet's actual header row: the row to append follows that order.
+ */
 function ensureSheet_(headers) {
   var ss = SpreadsheetApp.getActive();
   var sheet = ss.getSheetByName(TAB) || ss.insertSheet(TAB);
-  var maxCols = sheet.getMaxColumns();
-  if (maxCols < headers.length) sheet.insertColumnsAfter(maxCols, headers.length - maxCols);
   var lastCol = sheet.getLastColumn();
-  var existing = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
-  var n = existing.length;
-  while (n > 0 && existing[n - 1] === "") n--;
-  if (n < headers.length) sheet.getRange(1, n + 1, 1, headers.length - n).setValues([headers.slice(n)]);
-  return sheet;
+  var cols = lastCol
+    ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function (h) { return String(h).trim(); })
+    : [];
+  while (cols.length && cols[cols.length - 1] === "") cols.pop();
+  var missing = headers.filter(function (h) { return cols.indexOf(h) < 0; });
+  if (missing.length) {
+    var need = cols.length + missing.length;
+    var maxCols = sheet.getMaxColumns();
+    if (maxCols < need) sheet.insertColumnsAfter(maxCols, need - maxCols);
+    sheet.getRange(1, cols.length + 1, 1, missing.length).setValues([missing]);
+    cols = cols.concat(missing);
+  }
+  return { sheet: sheet, cols: cols };
 }
 
 function json_(o) {

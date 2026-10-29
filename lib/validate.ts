@@ -1,8 +1,10 @@
 // Hand-written validation shared by the client (inline errors) and the server (trust nothing).
-import { COLUMN_I, CONSENT_VERSION, DIABETIC_CATEGORIES, LIMITS, RANGES } from "./config";
+import { ADULT_AGE, COLUMN_I, CONSENT_VERSION, DIABETIC_CATEGORIES, GENDERS, LIMITS, RANGES } from "./config";
 
-// Health details only: no name, age, gender, height or weight is collected.
+// No name, height or weight is collected.
 export interface Details {
+  age: string;
+  gender: string;
   diabeticCategory: string;
   hba1c: string;
   columnI: string;
@@ -14,9 +16,12 @@ export interface Details {
 export interface Consent {
   training: boolean;
   notDiagnosis: boolean;
+  ageOrGuardian: boolean; // "I am 18 or older", or for a minor "I am the parent or legal guardian"
 }
 
 export const emptyDetails: Details = {
+  age: "",
+  gender: "",
   diabeticCategory: "",
   hba1c: "",
   columnI: "",
@@ -28,6 +33,7 @@ export const emptyDetails: Details = {
 export const emptyConsent: Consent = {
   training: false,
   notDiagnosis: false,
+  ageOrGuardian: false,
 };
 
 export type ErrKey = "required" | "number" | "integer" | "range" | "tooLong" | "choice";
@@ -67,6 +73,8 @@ export type DetailsErrors = Partial<Record<keyof Details, FieldError>>;
 
 export function validateDetails(d: Details): DetailsErrors {
   const e: DetailsErrors = {};
+  e.age = checkNum(d.age, RANGES.age, true, true);
+  e.gender = d.gender ? (has(GENDERS, d.gender) ? undefined : { key: "choice" }) : { key: "required" };
   e.diabeticCategory = d.diabeticCategory
     ? has(DIABETIC_CATEGORIES, d.diabeticCategory)
       ? undefined
@@ -81,13 +89,19 @@ export function validateDetails(d: Details): DetailsErrors {
   return e;
 }
 
+export const isMinor = (age: string) => {
+  const n = parseNum(age);
+  return n !== null && n < ADULT_AGE;
+};
+
 export type ConsentErrors = Partial<Record<keyof Consent, FieldError>>;
 
-/** Both statements are required. The kiosk sets them together from its single consent checkbox. */
+/** All three statements are required. The kiosk sets them together from its single consent checkbox. */
 export function validateConsent(c: Consent): ConsentErrors {
   const e: ConsentErrors = {};
   if (!c.training) e.training = { key: "required" };
   if (!c.notDiagnosis) e.notDiagnosis = { key: "required" };
+  if (!c.ageOrGuardian) e.ageOrGuardian = { key: "required" };
   return e;
 }
 
@@ -129,6 +143,7 @@ export function parsePayload(raw: unknown): { ok: true; value: SubmissionPayload
   const consent = {
     training: bool(c.training),
     notDiagnosis: bool(c.notDiagnosis),
+    ageOrGuardian: bool(c.ageOrGuardian),
     consentedAt: str(c.consentedAt, 40),
     version: c.version === CONSENT_VERSION ? CONSENT_VERSION : null,
   };

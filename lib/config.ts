@@ -3,8 +3,9 @@
 // 1.1: single combined consent checkbox, no signature.
 // 1.2: no personal details (name, age, gender, height, weight) and no age/guardian statement.
 // 1.3: the withdrawal ID is called "Subject ID" (was "Reference ID").
+// 1.4: age and gender collected again, with the 18+ / parent-or-guardian statement.
 // Bump again whenever the consent text changes.
-export const CONSENT_VERSION = "ATR-CONSENT-1.3-2026-10";
+export const CONSENT_VERSION = "ATR-CONSENT-1.4-2026-10";
 // TODO before go-live: replace with a monitored inbox. Shown on the consent screen as the withdrawal route.
 export const CONTACT_EMAIL = "privacy@your-domain.example";
 export const RETENTION_YEARS = 5;
@@ -100,6 +101,15 @@ export const DIABETIC_CATEGORIES: Option[] = [
   { value: "Unknown", en: "Don't know", hi: "पता नहीं" },
 ];
 
+export const GENDERS: Option[] = [
+  { value: "Male", en: "Male", hi: "पुरुष" },
+  { value: "Female", en: "Female", hi: "महिला" },
+  { value: "Other", en: "Other", hi: "अन्य" },
+];
+
+// Under this age the consent statement becomes "I am the parent or legal guardian...".
+export const ADULT_AGE = 18;
+
 // Optional fasting blood sugar field. Set to null to hide the field and drop its sheet column.
 export const COLUMN_I: { header: string; en: string; hi: string; min: number; max: number } | null = {
   header: "FBS (mg/dL)",
@@ -110,6 +120,7 @@ export const COLUMN_I: { header: string; en: string; hi: string; min: number; ma
 };
 
 export const RANGES = {
+  age: [1, 120],
   hba1c: [3, 20],
   rbs: [20, 800],
 } as const;
@@ -125,11 +136,13 @@ export const LIMITS = {
 // ---- Google Sheet layout ----
 export const SHEET_TAB = "Form_Responses";
 
-// Only what the kiosk collects. Changing this list changes the sheet layout: start a fresh sheet
-// (or move existing columns to match) rather than reordering under existing rows.
+// Only what the kiosk collects, in the order a new sheet gets them. The script places values by header
+// name, so an existing sheet keeps its own column order; headers it lacks are added at its end.
 export const SHEET_COLUMNS: string[] = [
   "Timestamp",
   "Subject ID", // also the dedupe key: the script never writes two rows with one Subject ID
+  "Age",
+  "Gender",
   "Diabetic Category",
   "HbA1c",
   ...(COLUMN_I ? [COLUMN_I.header] : []),
