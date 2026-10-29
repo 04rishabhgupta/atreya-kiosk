@@ -12,6 +12,7 @@
  */
 
 var TAB = "Form_Responses";
+var ID_HEADER = "Subject ID";
 var MAX_FILES = 6;
 var MAX_FILE_B64 = 4 * 1024 * 1024;
 
@@ -37,7 +38,7 @@ function doPost(e) {
 function handle_(req, props) {
   var key = String(req.submissionKey || "");
   var headers = req.headers;
-  if (!/^[0-9a-f-]{36}$/i.test(key) || !Array.isArray(headers) || !Array.isArray(req.files) || req.files.length > MAX_FILES) {
+  if (!/^[0-9a-f-]{36}$/i.test(key) || !/^ATR-[0-9A-Z]{5}-[0-9A-Z]{5}$/.test(String(req.referenceId)) || !Array.isArray(headers) || !Array.isArray(req.files) || req.files.length > MAX_FILES) {
     return { ok: false, error: "invalid" };
   }
 
@@ -46,13 +47,14 @@ function handle_(req, props) {
   if (!lock.tryLock(30000)) return { ok: false, error: "busy" };
   try {
     var sheet = ensureSheet_(headers);
-    var refCol = headers.indexOf("Reference ID") + 1;
-    var subCol = headers.indexOf("Submission ID") + 1;
+    var idCol = headers.indexOf(ID_HEADER) + 1;
+    if (!idCol) return { ok: false, error: "invalid" };
 
-    // Already appended by an earlier attempt? Return the same Reference ID.
-    var hit = sheet.getRange(1, subCol, sheet.getMaxRows(), 1).createTextFinder(key).matchEntireCell(true).findNext();
+    // Already appended by an earlier attempt? The Subject ID is derived from the kiosk's key, so a retry
+    // carries the same one.
+    var hit = sheet.getRange(1, idCol, sheet.getMaxRows(), 1).createTextFinder(String(req.referenceId)).matchEntireCell(true).findNext();
     if (hit && hit.getRow() > 1) {
-      return { ok: true, referenceId: String(sheet.getRange(hit.getRow(), refCol).getValue()), duplicate: true };
+      return { ok: true, referenceId: String(req.referenceId), duplicate: true };
     }
 
     // Reuse the folder from an earlier partial attempt (remembered until the row is written).
@@ -76,7 +78,7 @@ function handle_(req, props) {
     }
 
     var cells = req.cells || {};
-    cells["Reference ID"] = ref;
+    cells[ID_HEADER] = ref;
     cells["Drive Folder Link"] = folder.getUrl();
     for (var i = 0; i < req.files.length; i++) {
       var f = req.files[i];

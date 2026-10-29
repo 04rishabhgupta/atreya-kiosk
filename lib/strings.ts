@@ -125,7 +125,7 @@ const en = {
     "They are used only to train and test the atreya.ai research model — not to diagnose you.",
     "Only the named atreya.ai research team can access them. They are stored privately.",
     `We keep them for up to ${RETENTION_YEARS} years, or less if you withdraw.`,
-    `You can withdraw at any time: email ${CONTACT_EMAIL} with your Reference ID.`,
+    `You can withdraw at any time: email ${CONTACT_EMAIL} with your Subject ID.`,
   ],
   fullTextToggle: "Full consent text",
   fullText: [
@@ -151,7 +151,7 @@ const en = {
     },
     {
       h: "6. Your rights",
-      p: `Taking part is voluntary. You may withdraw your consent at any time without giving a reason by emailing ${CONTACT_EMAIL} with your Reference ID. We will then delete your photos and details. You may also ask to access or correct your data, or raise a grievance at the same address. These rights are provided under India's Digital Personal Data Protection Act, 2023.`,
+      p: `Taking part is voluntary. You may withdraw your consent at any time without giving a reason by emailing ${CONTACT_EMAIL} with your Subject ID. We will then delete your photos and details. You may also ask to access or correct your data, or raise a grievance at the same address. These rights are provided under India's Digital Personal Data Protection Act, 2023.`,
     },
     {
       h: "7. Children",
@@ -187,7 +187,7 @@ const en = {
 
   successTitle: "Thank you!",
   successBody: "Your photos and details were submitted securely. Your help makes atreya.ai better.",
-  refLabel: "Your Reference ID",
+  refLabel: "Your Subject ID",
   refHint: "Please note or photograph this ID. Quote it if you ever want your data withdrawn.",
   resetIn: "Starting over in {n} s",
   done: "Done",
@@ -312,7 +312,7 @@ const hi: Strings = {
     "इनका उपयोग केवल atreya.ai रिसर्च मॉडल को प्रशिक्षित और परखने के लिए होगा — आपका निदान करने के लिए नहीं।",
     "केवल atreya.ai की नामित रिसर्च टीम ही इन्हें देख सकती है। इन्हें निजी रूप से संग्रहित किया जाता है।",
     `हम इन्हें अधिकतम ${RETENTION_YEARS} वर्ष तक रखते हैं, या आपके सहमति वापस लेने तक।`,
-    `आप कभी भी सहमति वापस ले सकते हैं: अपनी रेफ़रेंस ID के साथ ${CONTACT_EMAIL} पर ईमेल करें।`,
+    `आप कभी भी सहमति वापस ले सकते हैं: अपनी सब्जेक्ट ID के साथ ${CONTACT_EMAIL} पर ईमेल करें।`,
   ],
   fullTextToggle: "सहमति का पूरा पाठ",
   fullText: [
@@ -338,7 +338,7 @@ const hi: Strings = {
     },
     {
       h: "6. आपके अधिकार",
-      p: `भाग लेना स्वैच्छिक है। आप बिना कोई कारण बताए कभी भी ${CONTACT_EMAIL} पर अपनी रेफ़रेंस ID के साथ ईमेल करके सहमति वापस ले सकते हैं। इसके बाद हम आपकी फ़ोटो और जानकारी मिटा देंगे। आप इसी पते पर अपने डेटा को देखने या सुधारने का अनुरोध, या शिकायत भी कर सकते हैं। ये अधिकार भारत के डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के तहत हैं।`,
+      p: `भाग लेना स्वैच्छिक है। आप बिना कोई कारण बताए कभी भी ${CONTACT_EMAIL} पर अपनी सब्जेक्ट ID के साथ ईमेल करके सहमति वापस ले सकते हैं। इसके बाद हम आपकी फ़ोटो और जानकारी मिटा देंगे। आप इसी पते पर अपने डेटा को देखने या सुधारने का अनुरोध, या शिकायत भी कर सकते हैं। ये अधिकार भारत के डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के तहत हैं।`,
     },
     {
       h: "7. बच्चे",
@@ -373,7 +373,7 @@ const hi: Strings = {
 
   successTitle: "धन्यवाद!",
   successBody: "आपकी फ़ोटो और जानकारी सुरक्षित रूप से जमा हो गई। आपकी मदद से atreya.ai बेहतर बनता है।",
-  refLabel: "आपकी रेफ़रेंस ID",
+  refLabel: "आपकी सब्जेक्ट ID",
   refHint: "कृपया यह ID लिख लें या इसकी फ़ोटो ले लें। डेटा हटवाने के लिए इसी ID का उपयोग करें।",
   resetIn: "{n} सेकंड में फिर से शुरू होगा",
   done: "पूरा हुआ",

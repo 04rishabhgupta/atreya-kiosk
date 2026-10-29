@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { COLUMN_I, CONSENT_VERSION, ENABLE_VIDEO, LIMITS, SHEET_COLUMNS, SHOTS, VIDEO } from "@/lib/config";
 import { BackendError, sendToScript, type ScriptFile } from "@/lib/appsScript";
 import { allow, clientIp } from "@/lib/rateLimit";
-import { formatIST, yearIST, ymdIST } from "@/lib/time";
+import { formatIST, ymdIST } from "@/lib/time";
 import { parseNum, parsePayload, type SubmissionPayload } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -20,13 +20,16 @@ const inflight = new Map<string, Promise<string>>();
 const done = new Map<string, { ref: string; at: number }>();
 const DONE_TTL_MS = 60 * 60_000;
 
+// Subject ID: ATR-XXXXX-XXXXX, derived from the kiosk's submissionKey so every retry gets the same ID.
+// It is also what the script dedupes on, so it must not repeat: 10 characters (50 bits) keep the chance
+// of two participants sharing one below 1 in 200,000 even after 100,000 submissions.
 const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-function referenceFromKey(key: string, now: Date): string {
-  const h = createHash("sha256").update(key).digest();
+const subjectId = (bytes: Uint8Array) => {
   let s = "";
-  for (let i = 0; i < 6; i++) s += CROCKFORD[(h[i] ?? 0) % 32];
-  return `ATR-${yearIST(now)}-${s}`;
-}
+  for (let i = 0; i < 10; i++) s += CROCKFORD[(bytes[i] ?? 0) % 32];
+  return `ATR-${s.slice(0, 5)}-${s.slice(5)}`;
+};
+const subjectIdFromKey = (key: string) => subjectId(createHash("sha256").update(key).digest());
 
 const MAGIC: Record<string, number[]> = {
   "image/jpeg": [0xff, 0xd8, 0xff],
@@ -83,21 +86,19 @@ async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promi
   const medicine =
     d.onMedicine === "Yes" ? (d.medicineDetails.trim() ? `Yes - ${d.medicineDetails.trim()}` : "Yes") : d.onMedicine;
 
-  // Link cells (photos, signature, folder) and the final Reference ID are filled in by the script.
-  // Patient Name, Age, Gender, Height and Weight are no longer collected: those cells are left empty.
+  // Link cells (photos, folder) and the Subject ID are filled in by the script.
   const cells: Record<string, string | number> = {
     Timestamp: formatIST(now),
     "Diabetic Category": d.diabeticCategory,
     HbA1c: num(d.hba1c),
     RBS: num(d.rbs),
     "Currently taking any Medicine?": medicine,
-    "Submission ID": key,
     "Consent Version": CONSENT_VERSION,
     "Consent Timestamp": formatIST(consentTime(p.consent.consentedAt, now)),
   };
   if (COLUMN_I) cells[COLUMN_I.header] = num(d.columnI);
 
-  const header: Record<string, string> = { signature: "Signature Link", video: "Face Video" };
+  const header: Record<string, string> = { video: "Face Video" };
   for (const s of SHOTS) header[s.id] = s.column;
   const files: ScriptFile[] = [];
   for (const u of uploads) {
@@ -106,7 +107,7 @@ async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promi
 
   const res = await sendToScript({
     submissionKey: key,
-    referenceId: referenceFromKey(key, now),
+    referenceId: subjectIdFromKey(key),
     dateStamp: ymdIST(now),
     headers: SHEET_COLUMNS,
     cells,
@@ -138,7 +139,7 @@ export async function POST(req: Request) {
   const trap = form.get("website");
   if (typeof trap === "string" && trap.trim() !== "") {
     log("honeypot");
-    return json({ referenceId: `ATR-${yearIST(new Date())}-${Math.random().toString(36).slice(2, 8).toUpperCase()}` });
+    return json({ referenceId: subjectId(crypto.getRandomValues(new Uint8Array(10))) });
   }
 
   const dataStr = form.get("data");
@@ -155,13 +156,6 @@ export async function POST(req: Request) {
     const f = await checkFile(form.get(s.id), ["image/jpeg"], LIMITS.maxImageBytes);
     if (typeof f === "string") return json({ error: f === "size" ? "too_large" : "invalid", field: s.id }, 400);
     uploads.push({ field: s.id, name: s.fileName, mime: "image/jpeg", file: f });
-  }
-  // The kiosk no longer collects a signature (consent 1.1). One sent by a client still on the old page is
-  // validated and stored as before; otherwise the Signature Link column is simply left empty.
-  if (form.get("signature") !== null) {
-    const sig = await checkFile(form.get("signature"), ["image/png"], LIMITS.maxSignatureBytes);
-    if (typeof sig === "string") return json({ error: "invalid", field: "signature" }, 400);
-    uploads.push({ field: "signature", name: "consent_signature.png", mime: "image/png", file: sig });
   }
   if (ENABLE_VIDEO && form.get("video") !== null) {
     const f = await checkFile(form.get("video"), ["video/webm", "video/mp4"], VIDEO.maxBytes + 200_000);

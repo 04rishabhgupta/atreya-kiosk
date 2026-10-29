@@ -2,8 +2,9 @@
 
 // 1.1: single combined consent checkbox, no signature.
 // 1.2: no personal details (name, age, gender, height, weight) and no age/guardian statement.
+// 1.3: the withdrawal ID is called "Subject ID" (was "Reference ID").
 // Bump again whenever the consent text changes.
-export const CONSENT_VERSION = "ATR-CONSENT-1.2-2026-10";
+export const CONSENT_VERSION = "ATR-CONSENT-1.3-2026-10";
 // TODO before go-live: replace with a monitored inbox. Shown on the consent screen as the withdrawal route.
 export const CONTACT_EMAIL = "privacy@your-domain.example";
 export const RETENTION_YEARS = 5;
@@ -99,8 +100,7 @@ export const DIABETIC_CATEGORIES: Option[] = [
   { value: "Unknown", en: "Don't know", hi: "पता नहीं" },
 ];
 
-// The existing sheet has an unnamed column I between HbA1c and RBS. We assume it is fasting
-// blood sugar. Set to null to hide the field; the cell is then written empty so columns never shift.
+// Optional fasting blood sugar field. Set to null to hide the field and drop its sheet column.
 export const COLUMN_I: { header: string; en: string; hi: string; min: number; max: number } | null = {
   header: "FBS (mg/dL)",
   en: "Fasting blood sugar (mg/dL)",
@@ -117,7 +117,6 @@ export const RANGES = {
 export const LIMITS = {
   maxRequestBytes: 4 * 1024 * 1024, // under Vercel's 4.5 MB body limit
   maxImageBytes: 1_200_000,
-  maxSignatureBytes: 200_000,
   maxDataJsonBytes: 20_000,
   medicineMax: 300,
   rateLimitPerMinute: 10,
@@ -126,26 +125,19 @@ export const LIMITS = {
 // ---- Google Sheet layout ----
 export const SHEET_TAB = "Form_Responses";
 
-// Order is fixed: existing columns A-N first, then new columns. Only ever append to the end.
+// Only what the kiosk collects. Changing this list changes the sheet layout: start a fresh sheet
+// (or move existing columns to match) rather than reordering under existing rows.
 export const SHEET_COLUMNS: string[] = [
   "Timestamp",
-  // B-F are no longer collected; the columns stay (left empty) so nothing after them shifts.
-  "Patient Name",
-  "Age",
-  "Gender",
-  "Height (cm)",
-  "Weight (kgs)",
+  "Subject ID", // also the dedupe key: the script never writes two rows with one Subject ID
   "Diabetic Category",
   "HbA1c",
-  COLUMN_I?.header ?? "Column I",
+  ...(COLUMN_I ? [COLUMN_I.header] : []),
   "RBS",
   "Currently taking any Medicine?",
   ...SHOTS.map((s) => s.column),
-  "Reference ID",
-  "Submission ID",
   "Drive Folder Link",
   "Consent Version",
   "Consent Timestamp",
-  "Signature Link",
   ...(ENABLE_VIDEO ? ["Face Video"] : []),
 ];

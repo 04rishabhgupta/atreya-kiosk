@@ -39,7 +39,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * POST with retry + backoff. Safe to retry: the script dedupes on submissionKey under a lock,
- * so a retry after a timeout returns the already-saved Reference ID instead of a second row.
+ * so a retry after a timeout returns the already-saved Subject ID instead of a second row.
  */
 export async function sendToScript(req: ScriptRequest, budgetMs = 50_000): Promise<{ referenceId: string; duplicate: boolean }> {
   const url = process.env.APPS_SCRIPT_URL;
