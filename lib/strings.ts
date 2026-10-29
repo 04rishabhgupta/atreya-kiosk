@@ -61,6 +61,8 @@ const en = {
   // Kept to the essentials. Mask, glasses, cap and hair are instructions only (not detected).
   camDos: ["Keep your whole face clearly visible", "Keep your hair away from your face"],
   camDonts: ["Wear a mask", "Wear glasses or sunglasses", "Wear a cap or hat"],
+  // Phones: the same checklist as short chips, so the camera keeps most of the screen.
+  camChips: { do: ["Face fully visible", "Hair off your face"], dont: ["No mask", "No glasses", "No cap or hat"] },
   camAutoHeading: "Checked automatically",
   camAuto: ["Only one person in the frame", "Even light on your face, no glare"],
   guide: {
@@ -105,6 +107,7 @@ const en = {
     medicineDetails: "Which medicines? (optional)",
   },
   optionalHint: "Optional — leave blank if you don't know",
+  testsOptional: "These tests are optional — leave blank if you don't know.", // phones: one note instead of three hints
   select: "Select…",
   yes: "Yes",
   no: "No",
@@ -248,6 +251,7 @@ const hi: Strings = {
   camDontsHeading: "न करें",
   camDos: ["पूरा चेहरा साफ़ दिखने दें", "बालों को चेहरे से दूर रखें"],
   camDonts: ["मास्क पहनना", "चश्मा या धूप का चश्मा पहनना", "टोपी या हैट पहनना"],
+  camChips: { do: ["पूरा चेहरा दिखे", "बाल चेहरे से दूर"], dont: ["मास्क नहीं", "चश्मा नहीं", "टोपी नहीं"] },
   camAutoHeading: "अपने-आप जाँचा जाता है",
   camAuto: ["फ़्रेम में केवल एक व्यक्ति", "चेहरे पर बराबर रोशनी, बिना चमक"],
   guide: {
@@ -292,6 +296,7 @@ const hi: Strings = {
     medicineDetails: "कौन-सी दवाएँ? (वैकल्पिक)",
   },
   optionalHint: "वैकल्पिक — पता न हो तो खाली छोड़ दें",
+  testsOptional: "ये जाँचें वैकल्पिक हैं — पता न हो तो खाली छोड़ दें।",
   select: "चुनें…",
   yes: "हाँ",
   no: "नहीं",

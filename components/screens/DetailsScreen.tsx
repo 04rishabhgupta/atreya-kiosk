@@ -28,7 +28,7 @@ export default function DetailsScreen() {
   const blur = (k: K) => () => setTouched((x) => (x[k] ? x : { ...x, [k]: true }));
 
   const num = (k: K, label: string, integer = false, hint?: string) => (
-    <Field id={k} label={label} hint={hint} error={err(k)}>
+    <Field id={k} label={label} hint={hint} hintClass="max-sm:hidden" error={err(k)}>
       <TextInput
         id={k}
         inputMode={integer ? "numeric" : "decimal"}
@@ -93,6 +93,7 @@ export default function DetailsScreen() {
             </div>
           </Field>
 
+          <p className="mb-4 text-[14.5px] leading-snug text-fg-3 sm:hidden">{t.testsOptional}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-5">
             {num("hba1c", t.f.hba1c, false, t.optionalHint)}
             {num("rbs", t.f.rbs, true, t.optionalHint)}

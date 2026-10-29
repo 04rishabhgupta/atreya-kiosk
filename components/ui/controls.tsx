@@ -5,22 +5,25 @@ export function Field({
   id,
   label,
   hint,
+  hintClass = "",
   error,
   children,
 }: {
   id: string;
   label: string;
   hint?: string;
+  /** Extra classes for the hint, e.g. to hide it on phones where a shared note replaces it. */
+  hintClass?: string;
   error?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="mb-5 tall:mb-7" data-field={id}>
+    <div className="mb-5 tall:mb-7 max-sm:mb-4" data-field={id}>
       <label htmlFor={id} className="t-label mb-2 block">
         {label}
       </label>
       {children}
-      {hint && !error && <p className="mt-2 text-[14.5px] text-fg-3 tall:text-[16px]">{hint}</p>}
+      {hint && !error && <p className={`mt-2 text-[14.5px] text-fg-3 tall:text-[16px] ${hintClass}`}>{hint}</p>}
       {error && (
         <p className="mt-2 text-[15px] font-medium text-coral tall:text-[17px]" role="alert">
           {error}
@@ -31,7 +34,7 @@ export function Field({
 }
 
 export const inputClass = (invalid: boolean) =>
-  `block w-full min-h-15 rounded-xl border bg-surface px-4 text-fg outline-none placeholder:text-fg-3 transition-[border-color,box-shadow] duration-150 focus:ring-4 tall:min-h-[72px] ${
+  `block w-full min-h-15 max-sm:min-h-13 rounded-xl border bg-surface px-4 text-fg outline-none placeholder:text-fg-3 transition-[border-color,box-shadow] duration-150 focus:ring-4 tall:min-h-[72px] ${
     invalid ? "border-coral focus:ring-coral/15" : "border-hair-strong focus:border-mint focus:ring-mint/15"
   }`;
 
