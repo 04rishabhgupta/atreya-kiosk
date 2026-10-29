@@ -139,7 +139,7 @@ export default function ReviewScreen() {
       )}
 
       <Section title={t.secPhotos} editLabel={t.edit} onEdit={canEdit ? () => go(STEPS.camera, true) : undefined}>
-        <div className="grid grid-cols-3 gap-4 tall:gap-6">
+        <div className="grid grid-cols-3 gap-4 tall:gap-6 desk:max-w-[456px]">
           {SHOTS.map((sh) => (
             <figure key={sh.id} className="text-center">
               <div className="aspect-[3/4] overflow-hidden rounded-xl bg-surface-2">

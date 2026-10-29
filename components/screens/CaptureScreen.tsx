@@ -132,6 +132,7 @@ export default function CaptureScreen() {
   return (
     <ScreenLayout
       scroll={false}
+      wide
       actions={
         phase === "video" ? (
           <VideoActions t={t} cam={cam} has={!!video} onDone={(b) => setVideo(b)} onNext={next} onBack={goBack} />

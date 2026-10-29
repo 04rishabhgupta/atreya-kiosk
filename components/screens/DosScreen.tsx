@@ -43,8 +43,8 @@ export default function DosScreen() {
           <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 tall:gap-6">
             {SHOTS.map((s, i) => (
               <li key={s.id} className="flex items-center gap-4 sm:block">
-                <div className="flex aspect-square w-[72px] shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg sm:w-auto">
-                  <PoseGlyph turn={s.turn} className="w-[62%]" />
+                <div className="flex aspect-square w-[72px] shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg sm:w-auto desk:aspect-[4/3]">
+                  <PoseGlyph turn={s.turn} className="w-[62%] desk:w-[46%]" />
                 </div>
                 <div className="min-w-0">
                   <p className="flex items-baseline gap-2 sm:mt-3 tall:mt-4">

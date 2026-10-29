@@ -15,6 +15,7 @@ import SuccessScreen from "./screens/SuccessScreen";
 import { Button } from "./ui/Button";
 import { Dialog } from "./ui/Dialog";
 import { BrandMark, IconGlobe, IconRefresh } from "./ui/icons";
+import { DESK_COL_WIDE } from "./ui/ScreenLayout";
 
 // Only the camera step pulls in camera code, and only on the client.
 const CaptureScreen = dynamic(loadCaptureScreen, {
@@ -80,7 +81,7 @@ function Shell() {
 
   return (
     <div className="app-h flex flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-hair bg-surface px-4 sm:px-8 tall:px-12">
+      <header className={`shrink-0 border-b border-hair bg-surface px-4 sm:px-8 tall:px-12 ${DESK_COL_WIDE}`}>
         <div className="flex min-h-14 items-center gap-2 sm:min-h-[72px] tall:min-h-[88px] compact:min-h-12">
           <span className="flex items-center gap-2.5">
             <BrandMark className="size-7 tall:size-8" />

@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
+// Desktop only: side padding that centres content in a column of this width (the scrollbar stays at the edge).
+export const DESK_COL = "desk:px-[max(2rem,calc((100%_-_760px)_/_2))]";
+export const DESK_COL_WIDE = "desk:px-[max(2rem,calc((100%_-_1120px)_/_2))]";
+
 /** Scrollable content + persistent bottom action bar. One primary action per screen. */
 export function ScreenLayout({
   title,
@@ -8,6 +12,7 @@ export function ScreenLayout({
   actions,
   scroll = true,
   fill = false,
+  wide = false,
 }: {
   title?: string;
   intro?: string;
@@ -16,12 +21,15 @@ export function ScreenLayout({
   scroll?: boolean;
   /** Scrolling screen whose body stretches to the remaining height (so content can be pinned to the bottom). */
   fill?: boolean;
+  /** Desktop: use the wide column (camera beside its guide) instead of the reading column. */
+  wide?: boolean;
 }) {
+  const col = wide ? DESK_COL_WIDE : DESK_COL;
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       {/* Scrolling screens are a plain block so tall children grow instead of flex-shrinking. */}
       <div
-        className={`anim-enter min-h-0 flex-1 px-4 pt-5 pb-5 sm:px-8 sm:pt-7 sm:pb-7 tall:px-12 tall:pt-10 compact:pt-3 compact:pb-3 cramped:pt-3 cramped:pb-3 ${
+        className={`anim-enter min-h-0 flex-1 px-4 pt-5 pb-5 sm:px-8 sm:pt-7 sm:pb-7 tall:px-12 tall:pt-10 compact:pt-3 compact:pb-3 cramped:pt-3 cramped:pb-3 ${col} ${
           scroll ? `overflow-y-auto ${fill ? "flex flex-col" : ""}` : "flex flex-col overflow-hidden"
         }`}
       >
@@ -33,7 +41,7 @@ export function ScreenLayout({
         )}
         {fill ? <div className="flex flex-[1_0_auto] flex-col">{children}</div> : children}
       </div>
-      <footer className="flex gap-3 border-t border-hair bg-surface px-4 py-3 sm:px-8 sm:py-4 tall:px-12 tall:py-6 compact:py-2">{actions}</footer>
+      <footer className={`flex gap-3 border-t border-hair bg-surface px-4 py-3 sm:px-8 sm:py-4 tall:px-12 tall:py-6 compact:py-2 ${col}`}>{actions}</footer>
     </section>
   );
 }
