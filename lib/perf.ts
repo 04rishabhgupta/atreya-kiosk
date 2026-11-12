@@ -5,4 +5,5 @@ export const perf = {
   sampleMs: 0, // shrinking the frame + lighting stats, last check
   detectMs: 0, // face detection, smoothed
   faceEveryMs: 0, // current gap between face detections (grows on slow devices)
+  check: "", // live check values and the resulting prompt, for tuning the limits on site
 };

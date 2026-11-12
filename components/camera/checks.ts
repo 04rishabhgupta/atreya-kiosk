@@ -89,7 +89,10 @@ export class FrameSampler {
     const rx = face.width / 2;
     const ry = face.height / 2;
     let n = 0;
+    let total = 0;
     let blown = 0;
+    // Shadow is compared on the cheeks only: a band from just above the face centre to above the chin,
+    // leaving out the nose ridge (it shades itself) and the box edges (ears, hair, background).
     const sum = [0, 0];
     const cnt = [0, 0];
     for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(h, Math.ceil(cy + ry)); y++)
@@ -98,11 +101,15 @@ export class FrameSampler {
         const dy = (y - cy) / ry;
         if (dx * dx + dy * dy > 1) continue;
         const g = luma((y * w + x) * 4);
-        const side = x < cx ? 0 : 1;
-        sum[side]! += g;
-        cnt[side]!++;
         n++;
+        total += g;
         if (g >= BLOWN_OUT) blown++;
+        const ax = Math.abs(dx);
+        if (dy > -0.15 && dy < 0.6 && ax > 0.12 && ax < 0.8) {
+          const side = x < cx ? 0 : 1;
+          sum[side]! += g;
+          cnt[side]!++;
+        }
       }
     if (!n) return { frame, face: null };
     const left = cnt[0] ? sum[0]! / cnt[0]! : 0;
@@ -110,7 +117,7 @@ export class FrameSampler {
     const hi = Math.max(left, right);
     return {
       frame,
-      face: { brightness: (sum[0]! + sum[1]!) / n, overexposed: blown / n, sideImbalance: hi > 0 ? Math.abs(left - right) / hi : 0 },
+      face: { brightness: total / n, overexposed: blown / n, sideImbalance: hi > 0 && cnt[0] && cnt[1] ? Math.abs(left - right) / hi : 0 },
     };
   }
 }
@@ -127,36 +134,48 @@ export type Guidance =
   | "tooDark"
   | "tooBright"
   | "overexposed"
+  | "unevenLightTip"
   | "unevenLight"
   | "good";
 export type Level = "bad" | "warn" | "good";
 export type DetectorState = "loading" | "ready" | "failed";
 
+export interface Verdict {
+  g: Guidance;
+  level: Level;
+  /** Capture allowed. True for "good", and for a tip that is only advice (mildly uneven light). */
+  ok: boolean;
+}
+
+const no = (g: Guidance, level: Level): Verdict => ({ g, level, ok: false });
+
 /**
- * The only checks that block Capture: a clearly visible face, exactly one person, and even lighting.
- * There is deliberately no path to "good" without a working detector and a detected face.
+ * What blocks Capture: no clearly visible face, more than one person, too dark or bright, glare, or one side
+ * of the face in deep shadow. Mildly uneven light only shows a tip. There is deliberately no path to
+ * "ok" without a working detector and a detected face.
  */
-export function evaluate(m: Metrics, face: FaceResult | null, detector: DetectorState, turn: ShotConfig["turn"]): { g: Guidance; level: Level } {
-  if (detector === "failed") return { g: "detectorFailed", level: "bad" };
-  if (detector === "loading" || !face) return { g: "checking", level: "warn" };
+export function evaluate(m: Metrics, face: FaceResult | null, detector: DetectorState, turn: ShotConfig["turn"]): Verdict {
+  if (detector === "failed") return no("detectorFailed", "bad");
+  if (detector === "loading" || !face) return no("checking", "warn");
   if (face.count === 0) {
     // A very dark or washed-out picture is the usual reason no face is found: say so.
-    if (m.frame < CHECKS.brightnessMin) return { g: "tooDark", level: "bad" };
-    if (m.frame > CHECKS.brightnessMax) return { g: "tooBright", level: "bad" };
-    return { g: "noFace", level: "bad" };
+    if (m.frame < CHECKS.brightnessMin) return no("tooDark", "bad");
+    if (m.frame > CHECKS.brightnessMax) return no("tooBright", "bad");
+    return no("noFace", "bad");
   }
-  if (face.count > 1) return { g: "multipleFaces", level: "bad" };
+  if (face.count > 1) return no("multipleFaces", "bad");
   const front = turn === "none";
-  if (face.score < (front ? CHECKS.frontScoreMin : CHECKS.profileScoreMin)) return { g: "faceNotClear", level: "bad" };
+  if (face.score < (front ? CHECKS.frontScoreMin : CHECKS.profileScoreMin)) return no("faceNotClear", "bad");
 
   const f = m.face;
-  if (!f) return { g: "checking", level: "warn" }; // face found but not yet measured (stats lag detection slightly)
-  if (f.brightness < CHECKS.brightnessMin) return { g: "tooDark", level: "bad" };
-  if (f.brightness > CHECKS.brightnessMax) return { g: "tooBright", level: "bad" };
-  if (f.overexposed > CHECKS.overexposedMax) return { g: "overexposed", level: "bad" };
+  if (!f) return no("checking", "warn"); // face found but not yet measured (stats lag detection slightly)
+  if (f.brightness < CHECKS.brightnessMin) return no("tooDark", "bad");
+  if (f.brightness > CHECKS.brightnessMax) return no("tooBright", "bad");
+  if (f.overexposed > CHECKS.overexposedMax) return no("overexposed", "bad");
   // A turned face is naturally lit unevenly, so the side-shadow check only applies to the front shot.
-  if (front && f.sideImbalance > CHECKS.sideShadowMax) return { g: "unevenLight", level: "warn" };
-  return { g: "good", level: "good" };
+  if (front && f.sideImbalance > CHECKS.sideShadowBlock) return no("unevenLight", "bad");
+  if (front && f.sideImbalance > CHECKS.sideShadowTip) return { g: "unevenLightTip", level: "warn", ok: true };
+  return { g: "good", level: "good", ok: true };
 }
 
 // ---- Still capture ----

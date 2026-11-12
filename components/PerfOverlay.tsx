@@ -23,6 +23,7 @@ export default function PerfOverlay() {
         perf.video
           ? `camera ${perf.video} · frame ${perf.sampleMs.toFixed(1)} ms · face ${perf.detectMs.toFixed(1)} ms every ${Math.round(perf.faceEveryMs)} ms`
           : "camera off",
+        ...(perf.check ? [perf.check] : []),
       ]);
       frames = 0;
     }, 1000);

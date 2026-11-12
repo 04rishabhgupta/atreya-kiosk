@@ -4,7 +4,7 @@ import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from
 import { CAMERA_CONSTRAINTS, CHECKS } from "@/lib/config";
 import type { Strings } from "@/lib/strings";
 import { perf } from "@/lib/perf";
-import { evaluate, FrameSampler, grabStill, toFaceResult, type DetectorState, type FaceResult, type Guidance, type Level, type Metrics } from "./checks";
+import { evaluate, FrameSampler, grabStill, toFaceResult, type DetectorState, type FaceResult, type Guidance, type Metrics, type Verdict } from "./checks";
 import { loadFaceDetector, type Detector } from "./detector";
 import { FaceOverlay } from "./FaceOverlay";
 
@@ -25,7 +25,7 @@ interface Props {
   guide: Strings["guide"];
   onError: (e: CameraError) => void;
   onAutoCapture: () => void;
-  /** Called whenever "every check passes" flips. The screen gates Capture on this. */
+  /** Called whenever "Capture allowed" flips (every check passes, or only a tip remains). The screen gates Capture on this. */
   onReady: (ready: boolean) => void;
 }
 
@@ -37,7 +37,7 @@ function classify(e: unknown): CameraError {
   return "error";
 }
 
-const STARTING = { g: "starting" as Guidance, level: "warn" as Level };
+const STARTING: Verdict = { g: "starting", level: "warn", ok: false };
 
 /**
  * Live preview + check loop. The loop runs on a timer outside React; it only calls setState
@@ -68,6 +68,7 @@ export const CameraView = memo(function CameraView({
     autoCapture,
     metrics: { frame: 0, face: null } as Metrics,
     face: null as FaceResult | null,
+    side: null as number | null, // smoothed left/right cheek difference
     detector: null as Detector | null,
     detState: "loading" as DetectorState,
     ready: false,
@@ -87,6 +88,7 @@ export const CameraView = memo(function CameraView({
     l.goodSince = 0;
     l.autoFired = false;
     l.face = null;
+    l.side = null;
     l.last = "starting";
     setState(STARTING);
     if (l.ready) {
@@ -221,13 +223,24 @@ export const CameraView = memo(function CameraView({
       l.metrics = sampler.analyze(l.face?.count === 1 ? l.face.box : null);
       perf.sampleMs = drawMs + performance.now() - t0;
       perf.video = `${v.videoWidth}x${v.videoHeight}`;
+      // Average the shadow reading over about a second, so a slight head movement doesn't flip the prompt.
+      const mf = l.metrics.face;
+      if (mf) {
+        l.side = l.side === null ? mf.sideImbalance : l.side + CHECKS.sideSmoothing * (mf.sideImbalance - l.side);
+        mf.sideImbalance = l.side;
+      } else {
+        l.side = null;
+      }
 
       const r = evaluate(l.metrics, l.face, l.detState, l.turn);
+      perf.check = mf
+        ? `face ${(l.face?.score ?? 0).toFixed(2)} · light ${Math.round(mf.brightness)} · L/R ${Math.round(mf.sideImbalance * 100)}% · glare ${(mf.overexposed * 100).toFixed(1)}% → ${r.g}`
+        : `faces ${l.face?.count ?? "-"} · frame light ${Math.round(l.metrics.frame)} → ${r.g}`;
       if (r.g !== l.last) {
         l.last = r.g;
         setState(r);
       }
-      const ready = r.level === "good";
+      const ready = r.ok;
       if (ready !== l.ready) {
         l.ready = ready;
         cb.current.onReady(ready);

@@ -62,7 +62,12 @@ export const CHECKS = {
   brightnessMin: 70, // mean luma 0-255 on the face
   brightnessMax: 205,
   overexposedMax: 0.06, // max fraction of face pixels that are blown out (luma >= 248)
-  sideShadowMax: 0.3, // front shot: max left/right brightness imbalance, as a fraction of the brighter half
+  // Front shot: left/right cheek brightness difference, as a fraction of the brighter cheek. Above the tip
+  // level a hint is shown but Capture stays enabled; only above the block level (one side in deep shadow)
+  // is Capture held back. Ordinary room light from one side is often 0.3-0.5.
+  sideShadowTip: 0.3,
+  sideShadowBlock: 0.6,
+  sideSmoothing: 0.3, // weight of each new reading (~1 s average at 4 checks per second), so it doesn't flicker
   goodHoldMs: 1_000, // auto-capture only (see AUTO_CAPTURE)
   frontScoreMin: 0.7, // front shot: detector confidence needed for "face clearly visible"
   profileScoreMin: 0.5, // turned shots: the detector is naturally less sure on a 45-degree profile
