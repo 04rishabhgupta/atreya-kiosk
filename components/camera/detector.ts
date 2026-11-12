@@ -6,7 +6,8 @@ import { FACE_DETECTOR } from "@/lib/config";
 import type { RawFace } from "./checks";
 
 export interface Detector {
-  detect(video: HTMLVideoElement, nowMs: number): RawFace[];
+  /** `image` is the small per-check copy of the frame; boxes come back in its pixels. */
+  detect(image: HTMLCanvasElement, nowMs: number): RawFace[];
 }
 
 let pending: Promise<Detector> | null = null;
@@ -22,10 +23,10 @@ export function loadFaceDetector(): Promise<Detector> {
     });
     let last = 0;
     return {
-      detect(video, nowMs) {
+      detect(image, nowMs) {
         // VIDEO mode requires strictly increasing timestamps.
         last = Math.max(nowMs, last + 1);
-        return fd.detectForVideo(video, last).detections.flatMap((d) =>
+        return fd.detectForVideo(image, last).detections.flatMap((d) =>
           d.boundingBox ? [{ score: d.categories[0]?.score ?? 0, box: d.boundingBox }] : [],
         );
       },

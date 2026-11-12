@@ -16,7 +16,7 @@ export function ovalFor(boxW: number, boxH: number): Oval {
   return { cx: boxW / 2, cy: boxH * 0.47, rx, ry: rx * 1.3 };
 }
 
-/** A face as reported by the detector, in video pixels. */
+/** A face as reported by the detector, in FrameSampler pixels. */
 export interface RawFace {
   score: number;
   box: { originX: number; originY: number; width: number; height: number };
@@ -40,22 +40,27 @@ export interface Metrics {
 
 const BLOWN_OUT = 248;
 
-/** Lighting statistics on a tiny downscaled copy of the frame (~160 px long edge). */
-export class FrameAnalyzer {
-  private canvas = document.createElement("canvas");
+/**
+ * One small copy of the current video frame per check (CHECKS.sampleLongEdge), shared by the face
+ * detector and the lighting stats, so the frame is read back from the GPU once, at a fraction of its size.
+ */
+export class FrameSampler {
+  readonly canvas = document.createElement("canvas");
   private ctx: CanvasRenderingContext2D;
   private sizedFor = "";
 
   constructor() {
+    // willReadFrequently: pixels are read back every check, which Chrome handles best on a CPU-backed canvas.
     const ctx = this.canvas.getContext("2d", { willReadFrequently: true, alpha: false });
     if (!ctx) throw new Error("no 2d context");
     this.ctx = ctx;
   }
 
-  analyze(video: HTMLVideoElement, face: RawFace["box"] | null): Metrics {
+  /** Copy the current frame into the small canvas. Call once per check, before detect() and analyze(). */
+  draw(video: HTMLVideoElement) {
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const s = CHECKS.analysisLongEdge / Math.max(vw, vh);
+    const s = CHECKS.sampleLongEdge / Math.max(vw, vh);
     const w = Math.max(8, Math.round(vw * s));
     const h = Math.max(8, Math.round(vh * s));
     if (this.sizedFor !== `${w}x${h}`) {
@@ -64,6 +69,12 @@ export class FrameAnalyzer {
       this.sizedFor = `${w}x${h}`;
     }
     this.ctx.drawImage(video, 0, 0, w, h);
+  }
+
+  /** Lighting statistics on the drawn copy; `face` is in the same (small) pixels. */
+  analyze(face: RawFace["box"] | null): Metrics {
+    const w = this.canvas.width;
+    const h = this.canvas.height;
     const px = this.ctx.getImageData(0, 0, w, h).data;
     const luma = (i: number) => (77 * (px[i] ?? 0) + 150 * (px[i + 1] ?? 0) + 29 * (px[i + 2] ?? 0)) >> 8;
 
@@ -73,10 +84,10 @@ export class FrameAnalyzer {
     if (!face) return { frame, face: null };
 
     // Ellipse inscribed in the face box, so background in the box corners doesn't count; split at its centre.
-    const cx = (face.originX + face.width / 2) * s;
-    const cy = (face.originY + face.height / 2) * s;
-    const rx = (face.width / 2) * s;
-    const ry = (face.height / 2) * s;
+    const cx = face.originX + face.width / 2;
+    const cy = face.originY + face.height / 2;
+    const rx = face.width / 2;
+    const ry = face.height / 2;
     let n = 0;
     let blown = 0;
     const sum = [0, 0];

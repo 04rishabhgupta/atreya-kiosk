@@ -14,6 +14,10 @@ export const RETENTION_YEARS = 5;
 export const IDLE_TIMEOUT_MS = 90_000;
 export const IDLE_COUNTDOWN_S = 10;
 export const SUCCESS_RESET_S = 15;
+// Long-running kiosks: reload the page (clearing any slow memory growth) once it is this old,
+// only on the welcome screen after this long without a touch, and only if the server is reachable.
+export const RELOAD_AFTER_MS = 4 * 3600_000;
+export const RELOAD_QUIET_MS = 60_000;
 
 // ---- Camera ----
 // Off: with no positioning checks, "every check passes" happens the moment a well-lit face appears, which is
@@ -34,7 +38,7 @@ export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
     facingMode: "user",
     width: { ideal: 1280 },
     height: { ideal: 960 },
-    frameRate: { ideal: 24, max: 30 },
+    frameRate: { ideal: 24, max: 24 }, // smooth enough for a preview; less decoding work on slow devices
   },
 };
 
@@ -48,7 +52,12 @@ export const IMAGE = {
 export const CHECKS = {
   intervalMs: 250, // ~4 checks per second
   faceIntervalMs: 333, // face detection is pricier: ~3 per second
-  analysisLongEdge: 160,
+  // Slow devices: face detection may take at most this share of the time, so its gap grows (up to the max).
+  faceTimeShare: 0.15,
+  maxFaceIntervalMs: 1000,
+  // Each check copies the frame once at this size and shares it between the detector (which works at
+  // 128 px internally) and the lighting stats. Copying the full frame back from the GPU is slow on Android.
+  sampleLongEdge: 256,
   // Lighting is measured on the detected face (not on a fixed region), so it works wherever the face is.
   brightnessMin: 70, // mean luma 0-255 on the face
   brightnessMax: 205,

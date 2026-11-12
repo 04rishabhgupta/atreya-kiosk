@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { RELOAD_AFTER_MS, RELOAD_QUIET_MS } from "@/lib/config";
 import { fmt } from "@/lib/strings";
 import { IdleGuard } from "./IdleGuard";
 import { loadCaptureScreen } from "./lazy";
@@ -16,6 +17,9 @@ import { Button } from "./ui/Button";
 import { Dialog } from "./ui/Dialog";
 import { BrandMark, IconGlobe, IconRefresh } from "./ui/icons";
 import { DESK_COL_WIDE } from "./ui/ScreenLayout";
+
+// ?perf=1 only: never downloaded otherwise.
+const PerfOverlay = dynamic(() => import("./PerfOverlay"), { ssr: false });
 
 // Only the camera step pulls in camera code, and only on the client.
 const CaptureScreen = dynamic(loadCaptureScreen, {
@@ -41,6 +45,33 @@ function Shell() {
   const a = useActions();
   const t = useStrings();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showPerf, setShowPerf] = useState(false);
+
+  useEffect(() => setShowPerf(new URLSearchParams(window.location.search).has("perf")), []);
+
+  // Long-running kiosk: once the page is a few hours old, reload it while it sits untouched on the welcome
+  // screen. Never mid-session, and only if the server answers (a failed reload would strand the kiosk).
+  useEffect(() => {
+    if (s.step !== STEPS.about) return;
+    let quietSince = Date.now();
+    let cancelled = false;
+    const touched = () => (quietSince = Date.now());
+    window.addEventListener("pointerdown", touched, { passive: true, capture: true });
+    const id = window.setInterval(async () => {
+      if (performance.now() < RELOAD_AFTER_MS || Date.now() - quietSince < RELOAD_QUIET_MS || !navigator.onLine) return;
+      try {
+        if (!(await fetch("/api/health", { cache: "no-store" })).ok) return;
+      } catch {
+        return;
+      }
+      if (!cancelled && Date.now() - quietSince >= RELOAD_QUIET_MS) window.location.reload();
+    }, 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      window.removeEventListener("pointerdown", touched, { capture: true });
+    };
+  }, [s.step]);
 
   useEffect(() => {
     document.documentElement.lang = s.lang;
@@ -119,6 +150,7 @@ function Shell() {
       </main>
 
       <IdleGuard enabled={idleEnabled} onTimeout={a.reset} t={t} />
+      {showPerf && <PerfOverlay />}
       {confirmReset && (
         <Dialog
           title={t.startOverTitle}

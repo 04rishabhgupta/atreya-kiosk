@@ -3,7 +3,8 @@
 import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { CAMERA_CONSTRAINTS, CHECKS } from "@/lib/config";
 import type { Strings } from "@/lib/strings";
-import { evaluate, FrameAnalyzer, grabStill, toFaceResult, type DetectorState, type FaceResult, type Guidance, type Level, type Metrics } from "./checks";
+import { perf } from "@/lib/perf";
+import { evaluate, FrameSampler, grabStill, toFaceResult, type DetectorState, type FaceResult, type Guidance, type Level, type Metrics } from "./checks";
 import { loadFaceDetector, type Detector } from "./detector";
 import { FaceOverlay } from "./FaceOverlay";
 
@@ -180,23 +181,34 @@ export const CameraView = memo(function CameraView({
   }, []);
 
   // The check loop: ~3 Hz face detection, ~4 Hz lighting on the detected face, paused while inactive or hidden.
+  // Both work on one small copy of the frame per check. On a slow device face detection backs off so it
+  // never takes more than CHECKS.faceTimeShare of the time.
   useEffect(() => {
     const l = live.current;
-    let analyzer: FrameAnalyzer | null = null;
+    let sampler: FrameSampler | null = null;
     let lastFace = 0;
+    let detectMs = 0; // smoothed cost of one detection
+    let faceEvery: number = CHECKS.faceIntervalMs;
     let timer: number | undefined;
 
     const tick = () => {
       const v = video.current;
       const { w, h } = l.size;
       if (!l.active || !v || v.readyState < 2 || !v.videoWidth || !w || !h) return;
-      analyzer ??= new FrameAnalyzer();
+      sampler ??= new FrameSampler();
 
       const now = performance.now();
-      if (l.detector && now - lastFace >= CHECKS.faceIntervalMs) {
+      sampler.draw(v);
+      const drawMs = performance.now() - now;
+      if (l.detector && now - lastFace >= faceEvery) {
         lastFace = now;
         try {
-          l.face = toFaceResult(l.detector.detect(v, now));
+          l.face = toFaceResult(l.detector.detect(sampler.canvas, now));
+          const took = performance.now() - now - drawMs;
+          detectMs = detectMs ? detectMs * 0.8 + took * 0.2 : took;
+          faceEvery = Math.min(CHECKS.maxFaceIntervalMs, Math.max(CHECKS.faceIntervalMs, detectMs / CHECKS.faceTimeShare));
+          perf.detectMs = detectMs;
+          perf.faceEveryMs = faceEvery;
         } catch {
           // A detector that throws can't vouch for anything: block capture rather than skip the check.
           l.detector = null;
@@ -205,7 +217,10 @@ export const CameraView = memo(function CameraView({
         }
       }
       // Lighting is judged on the face wherever it is, not on a fixed region of the preview.
-      l.metrics = analyzer.analyze(v, l.face?.count === 1 ? l.face.box : null);
+      const t0 = performance.now();
+      l.metrics = sampler.analyze(l.face?.count === 1 ? l.face.box : null);
+      perf.sampleMs = drawMs + performance.now() - t0;
+      perf.video = `${v.videoWidth}x${v.videoHeight}`;
 
       const r = evaluate(l.metrics, l.face, l.detState, l.turn);
       if (r.g !== l.last) {
