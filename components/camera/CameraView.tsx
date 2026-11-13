@@ -26,7 +26,7 @@ interface Props {
   onError: (e: CameraError) => void;
   onAutoCapture: () => void;
   /** Called whenever "Capture allowed" flips (every check passes, or only a tip remains). The screen gates Capture on this. */
-  onReady: (ready: boolean) => void;
+  onReady?: (ready: boolean) => void;
 }
 
 function classify(e: unknown): CameraError {
@@ -93,7 +93,7 @@ export const CameraView = memo(function CameraView({
     setState(STARTING);
     if (l.ready) {
       l.ready = false;
-      cb.current.onReady(false);
+      cb.current.onReady?.(false);
     }
   }, [active, turn]);
 
@@ -243,7 +243,7 @@ export const CameraView = memo(function CameraView({
       const ready = r.ok;
       if (ready !== l.ready) {
         l.ready = ready;
-        cb.current.onReady(ready);
+        cb.current.onReady?.(ready);
       }
 
       if (ready && l.autoCapture) {

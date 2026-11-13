@@ -25,9 +25,9 @@ export default function CaptureScreen() {
   const [flash, setFlash] = useState(0);
   const [error, setError] = useState<CameraError | null>(null);
   const [camKey, setCamKey] = useState(0);
-  // Capture is allowed only while the automatic checks pass: a clearly visible face, one person, even lighting.
-  const [ready, setReady] = useState(false);
-  const canCapture = phase === "live" && ready;
+  // Capture is never disabled: the automatic checks only advise (the prompt on the preview). A tap during
+  // the 3-2-1 is ignored, so one tap takes one photo.
+  const canCapture = phase === "live";
 
   const shot = SHOTS[idx]!;
   const current = captures[shot.id];
@@ -39,12 +39,6 @@ export default function CaptureScreen() {
   }, []);
   const onAutoCapture = startCountdown; // CameraView only fires this when autoCapture (below) allows it
   const onError = useCallback((e: CameraError) => setError(e), []);
-  const onReady = useCallback((r: boolean) => setReady(r), []);
-
-  // Checks keep running during the 3-2-1: if anything fails before the shot, cancel and show why.
-  useEffect(() => {
-    if (phase === "countdown" && !ready) setPhase("live");
-  }, [phase, ready]);
 
   // 3-2-1, then flash + grab.
   useEffect(() => {
@@ -150,7 +144,7 @@ export default function CaptureScreen() {
             <Button variant="secondary" onClick={goBack} aria-label={t.back} disabled={phase === "countdown"}>
               <IconBack />
             </Button>
-            <Button className="flex-1" disabled={!canCapture} onClick={() => canCapture && startCountdown()}>
+            <Button className="flex-1" onClick={() => canCapture && startCountdown()}>
               <IconCamera /> {phase === "countdown" ? count || "" : t.capture}
             </Button>
           </>
@@ -202,7 +196,6 @@ export default function CaptureScreen() {
             guide={t.guide}
             onError={onError}
             onAutoCapture={onAutoCapture}
-            onReady={onReady}
           />
           {phase === "countdown" && count > 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/25">
@@ -281,7 +274,7 @@ function GuidePanel({
         <GuideList good heading={t.camDosHeading} items={t.camDos} />
         <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
       </div>
-      {/* What actually gates Capture, so a disabled button is never a surprise. */}
+      {/* What the automatic checks look at. They only advise: Capture is never disabled. */}
       <section className="mt-auto hidden border-t border-hair bg-surface-2 px-5 py-4 sm:block tall:px-7 tall:py-6 compact:hidden">
         <h2 className="t-kicker mb-2 tall:mb-3">{t.camAutoHeading}</h2>
         <ul>

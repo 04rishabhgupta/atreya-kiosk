@@ -244,7 +244,7 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] No camera, or camera in use by another app: the matching message appears.
 - [ ] Low light shows "Too dark". A lamp behind the participant shows "Too bright". Moving shows "Hold still".
 - [ ] Capture is enabled as soon as a face is clearly visible with even light, at any comfortable distance and anywhere in the picture (the oval is a guide only). Nothing captures by itself (`AUTO_CAPTURE` is off): the participant taps Capture.
-- [ ] A second person in the frame, too dark/too bright, glare, or one side of the face in deep shadow (front shot) each disable Capture with their own message. Mildly uneven light (front shot) only shows a tip; Capture stays enabled.
+- [ ] A second person in the frame, too dark/too bright, glare, or one side of the face in deep shadow (front shot) each show their own message (red), and mildly uneven light (front shot) shows a tip (amber). Capture is **never** disabled: the participant can always take the photo, so check the review screen.
 - [ ] **Calibrate on site:** open the kiosk with `?perf=1`. The readout shows the live face confidence, brightness, left/right cheek difference (`L/R`) and glare. Compare them with `sideShadowTip`, `sideShadowBlock`, `overexposedMax`, the brightness range and the `*ScoreMin` values in `lib/config.ts`, which were set on test images, not real participants.
 - [ ] Letting someone step into the frame during the 3-2-1 cancels the countdown.
 

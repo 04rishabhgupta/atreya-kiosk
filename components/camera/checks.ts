@@ -143,16 +143,16 @@ export type DetectorState = "loading" | "ready" | "failed";
 export interface Verdict {
   g: Guidance;
   level: Level;
-  /** Capture allowed. True for "good", and for a tip that is only advice (mildly uneven light). */
+  /** All clear: "good", or only a tip remains (mildly uneven light). Drives auto-capture; Capture itself is never disabled. */
   ok: boolean;
 }
 
 const no = (g: Guidance, level: Level): Verdict => ({ g, level, ok: false });
 
 /**
- * What blocks Capture: no clearly visible face, more than one person, too dark or bright, glare, or one side
- * of the face in deep shadow. Mildly uneven light only shows a tip. There is deliberately no path to
- * "ok" without a working detector and a detected face.
+ * The prompt shown on the preview. Problems (no clearly visible face, more than one person, too dark or bright,
+ * glare, one side of the face in deep shadow) are shown in red; mildly uneven light is an amber tip. These are
+ * advice only: the participant can always tap Capture. There is no path to "ok" without a detected face.
  */
 export function evaluate(m: Metrics, face: FaceResult | null, detector: DetectorState, turn: ShotConfig["turn"]): Verdict {
   if (detector === "failed") return no("detectorFailed", "bad");
