@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { COLUMN_I, DIABETIC_CATEGORIES } from "@/lib/config";
+import { COLUMN_I, DIABETIC_CATEGORIES, GENDERS } from "@/lib/config";
 import { fmt, type Strings } from "@/lib/strings";
 import { hasErrors, validateDetails, type Details, type FieldError } from "@/lib/validate";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
@@ -28,7 +28,7 @@ export default function DetailsScreen() {
   const blur = (k: K) => () => setTouched((x) => (x[k] ? x : { ...x, [k]: true }));
 
   const num = (k: K, label: string, integer = false, hint?: string) => (
-    <Field id={k} label={label} hint={hint} error={err(k)}>
+    <Field id={k} label={label} hint={hint} hintClass="max-sm:hidden" error={err(k)}>
       <TextInput
         id={k}
         inputMode={integer ? "numeric" : "decimal"}
@@ -68,7 +68,25 @@ export default function DetailsScreen() {
         </>
       }
     >
-      <Section title={t.detailsSecHealth}>
+      <Section title={t.detailsSecAbout}>
+        <div className="-mb-5 grid grid-cols-1 sm:grid-cols-2 sm:gap-x-5 tall:-mb-7">
+          {num("age", t.f.age, true)}
+          <Field id="gender" label={t.f.gender} error={err("gender")}>
+            <Segmented
+              id="gender"
+              value={d.gender}
+              invalid={!!err("gender")}
+              options={GENDERS.map((g) => ({ value: g.value, label: g[lang] }))}
+              onChange={(v) => {
+                set({ gender: v });
+                blur("gender")();
+              }}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title={t.detailsSecHealth} className="mt-4 tall:mt-6">
         <div className="-mb-5 tall:-mb-7">
           <Field id="diabeticCategory" label={t.f.diabeticCategory} error={err("diabeticCategory")}>
             <div className="relative">
@@ -93,6 +111,7 @@ export default function DetailsScreen() {
             </div>
           </Field>
 
+          <p className="mb-4 text-[14.5px] leading-snug text-fg-3 sm:hidden">{t.testsOptional}</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-5">
             {num("hba1c", t.f.hba1c, false, t.optionalHint)}
             {num("rbs", t.f.rbs, true, t.optionalHint)}

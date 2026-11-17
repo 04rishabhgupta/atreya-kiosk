@@ -22,7 +22,7 @@ export default function SuccessScreen() {
 
   return (
     <ScreenLayout
-      scroll={false}
+      fill
       actions={
         <Button className="flex-1" onClick={reset}>
           {t.done} · {fmt(t.resetIn, { n: left })}
@@ -31,7 +31,7 @@ export default function SuccessScreen() {
     >
       <div className="flex flex-1 flex-col items-center justify-center text-center">
         {/* Echoes the welcome contours, now resolved into a single confirmed mark. */}
-        <svg viewBox="0 0 200 200" className="size-32 tall:size-44" aria-hidden>
+        <svg viewBox="0 0 200 200" className="size-32 shrink-0 tall:size-44 max-sm:size-24 compact:hidden" aria-hidden>
           {[92, 78, 64].map((r, i) => (
             <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="#15201B" strokeOpacity={0.06 + i * 0.05} strokeWidth="1.2" />
           ))}
@@ -48,13 +48,13 @@ export default function SuccessScreen() {
           />
           <circle cx="165" cy="150" r="6" fill="#E07B28" />
         </svg>
-        <h1 className="t-display mt-6 text-fg tall:mt-8">{t.successTitle}</h1>
+        <h1 className="t-display mt-6 text-fg tall:mt-8 max-sm:mt-4 compact:mt-0">{t.successTitle}</h1>
         <p className="t-lead mt-2 max-w-[36ch] text-balance">{t.successBody}</p>
-        <div className="mt-8 w-full max-w-md rounded-2xl border border-hair bg-surface px-8 pt-5 pb-6 shadow-card tall:mt-12 tall:max-w-lg tall:pt-7 tall:pb-8">
+        <div className="mt-8 w-full max-w-md rounded-2xl border border-hair bg-surface px-8 pt-5 pb-6 shadow-card tall:mt-12 tall:max-w-lg tall:pt-7 tall:pb-8 max-sm:mt-6 max-sm:px-4 max-sm:pt-4 max-sm:pb-5 compact:mt-4">
           <p className="t-kicker">{t.refLabel}</p>
-          <p className="mt-2 font-mono text-[32px] font-semibold tracking-[0.06em] text-fg select-text tall:text-[40px]">{referenceId}</p>
+          <p className="mt-2 font-mono text-[32px] font-semibold tracking-[0.06em] whitespace-nowrap text-fg select-text tall:text-[40px] max-sm:text-[clamp(20px,7vw,26px)]">{referenceId}</p>
         </div>
-        <p className="mt-5 max-w-[38ch] text-[15px] leading-normal text-fg-3 tall:text-[19px]">{t.refHint}</p>
+        <p className="mt-5 max-w-[38ch] text-[15px] max-sm:mt-4 leading-normal text-fg-3 tall:text-[19px]">{t.refHint}</p>
       </div>
     </ScreenLayout>
   );

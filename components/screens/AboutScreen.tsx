@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { loadCaptureScreen } from "../lazy";
 import { useActions, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
 import { IconArrowRight } from "../ui/icons";
@@ -45,6 +47,19 @@ export default function AboutScreen() {
   const t = useStrings();
   const w = t.welcome;
   const { next } = useActions();
+
+  // Prepare the camera screen while the kiosk sits idle on this screen, so even the first participant after a
+  // restart never waits for it. (Cached after the first load; loaded once per page.)
+  useEffect(() => {
+    const warm = () => {
+      void loadCaptureScreen();
+    };
+    const id = window.setTimeout(() => {
+      if ("requestIdleCallback" in window) window.requestIdleCallback(warm, { timeout: 3000 });
+      else warm();
+    }, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
 
   return (
     <ScreenLayout

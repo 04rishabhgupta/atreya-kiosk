@@ -2,8 +2,10 @@
 
 // 1.1: single combined consent checkbox, no signature.
 // 1.2: no personal details (name, age, gender, height, weight) and no age/guardian statement.
+// 1.3: the withdrawal ID is called "Subject ID" (was "Reference ID").
+// 1.4: age and gender collected again, with the 18+ / parent-or-guardian statement.
 // Bump again whenever the consent text changes.
-export const CONSENT_VERSION = "ATR-CONSENT-1.2-2026-10";
+export const CONSENT_VERSION = "ATR-CONSENT-1.4-2026-10";
 // TODO before go-live: replace with a monitored inbox. Shown on the consent screen as the withdrawal route.
 export const CONTACT_EMAIL = "privacy@your-domain.example";
 export const RETENTION_YEARS = 5;
@@ -12,6 +14,10 @@ export const RETENTION_YEARS = 5;
 export const IDLE_TIMEOUT_MS = 90_000;
 export const IDLE_COUNTDOWN_S = 10;
 export const SUCCESS_RESET_S = 15;
+// Long-running kiosks: reload the page (clearing any slow memory growth) once it is this old,
+// only on the welcome screen after this long without a touch, and only if the server is reachable.
+export const RELOAD_AFTER_MS = 4 * 3600_000;
+export const RELOAD_QUIET_MS = 60_000;
 
 // ---- Camera ----
 // Tap Capture, then this many seconds (shown 5-4-3-2-1) to get into position before the photo is taken.
@@ -23,7 +29,7 @@ export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
     facingMode: "user",
     width: { ideal: 1280 },
     height: { ideal: 960 },
-    frameRate: { ideal: 24, max: 30 },
+    frameRate: { ideal: 24, max: 24 }, // smooth enough for a preview; less decoding work on slow devices
   },
 };
 
@@ -75,8 +81,16 @@ export const DIABETIC_CATEGORIES: Option[] = [
   { value: "Unknown", en: "Don't know", hi: "पता नहीं" },
 ];
 
-// The existing sheet has an unnamed column I between HbA1c and RBS. We assume it is fasting
-// blood sugar. Set to null to hide the field; the cell is then written empty so columns never shift.
+export const GENDERS: Option[] = [
+  { value: "Male", en: "Male", hi: "पुरुष" },
+  { value: "Female", en: "Female", hi: "महिला" },
+  { value: "Other", en: "Other", hi: "अन्य" },
+];
+
+// Under this age the consent statement becomes "I am the parent or legal guardian...".
+export const ADULT_AGE = 18;
+
+// Optional fasting blood sugar field. Set to null to hide the field and drop its sheet column.
 export const COLUMN_I: { header: string; en: string; hi: string; min: number; max: number } | null = {
   header: "FBS (mg/dL)",
   en: "Fasting blood sugar (mg/dL)",
@@ -86,6 +100,7 @@ export const COLUMN_I: { header: string; en: string; hi: string; min: number; ma
 };
 
 export const RANGES = {
+  age: [1, 120],
   hba1c: [3, 20],
   rbs: [20, 800],
 } as const;
@@ -93,7 +108,6 @@ export const RANGES = {
 export const LIMITS = {
   maxRequestBytes: 4 * 1024 * 1024, // under Vercel's 4.5 MB body limit
   maxImageBytes: 1_200_000,
-  maxSignatureBytes: 200_000,
   maxDataJsonBytes: 20_000,
   medicineMax: 300,
   rateLimitPerMinute: 10,
@@ -102,26 +116,21 @@ export const LIMITS = {
 // ---- Google Sheet layout ----
 export const SHEET_TAB = "Form_Responses";
 
-// Order is fixed: existing columns A-N first, then new columns. Only ever append to the end.
+// Only what the kiosk collects, in the order a new sheet gets them. The script places values by header
+// name, so an existing sheet keeps its own column order; headers it lacks are added at its end.
 export const SHEET_COLUMNS: string[] = [
   "Timestamp",
-  // B-F are no longer collected; the columns stay (left empty) so nothing after them shifts.
-  "Patient Name",
+  "Subject ID", // also the dedupe key: the script never writes two rows with one Subject ID
   "Age",
   "Gender",
-  "Height (cm)",
-  "Weight (kgs)",
   "Diabetic Category",
   "HbA1c",
-  COLUMN_I?.header ?? "Column I",
+  ...(COLUMN_I ? [COLUMN_I.header] : []),
   "RBS",
   "Currently taking any Medicine?",
   ...SHOTS.map((s) => s.column),
-  "Reference ID",
-  "Submission ID",
   "Drive Folder Link",
   "Consent Version",
   "Consent Timestamp",
-  "Signature Link",
   ...(ENABLE_VIDEO ? ["Face Video"] : []),
 ];

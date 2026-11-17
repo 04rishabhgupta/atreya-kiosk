@@ -44,6 +44,9 @@
 @custom-variant compact (@media (max-height: 520px));
 /* Small, short phones in portrait (e.g. 320x568, 360x640): trim chrome so the camera keeps usable height. */
 @custom-variant cramped (@media (max-width: 639px) and (max-height: 700px));
+/* Desktops and laptops (wide screen, mouse or trackpad): content sits in a centred column instead of
+   stretching edge to edge. Phones, tablets and the touchscreen kiosk have a coarse pointer, so never match. */
+@custom-variant desk (@media (min-width: 1024px) and (hover: hover) and (pointer: fine));
 
 /* ---- Type scale: one set of roles, used on every screen ---- */
 @layer components {

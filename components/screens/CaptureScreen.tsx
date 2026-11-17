@@ -25,7 +25,8 @@ export default function CaptureScreen() {
   const [flash, setFlash] = useState(0);
   const [error, setError] = useState<CameraError | null>(null);
   const [camKey, setCamKey] = useState(0);
-  // Capture is always available while the camera is live: no face, positioning or lighting check can block it.
+  // Capture is never disabled: no face, positioning or lighting check can block it. A tap during the
+  // countdown is ignored, so one tap takes one photo.
   const canCapture = phase === "live";
 
   const shot = SHOTS[idx]!;
@@ -125,6 +126,7 @@ export default function CaptureScreen() {
   return (
     <ScreenLayout
       scroll={false}
+      wide
       actions={
         phase === "video" ? (
           <VideoActions t={t} cam={cam} has={!!video} onDone={(b) => setVideo(b)} onNext={next} onBack={goBack} />
@@ -142,7 +144,7 @@ export default function CaptureScreen() {
             <Button variant="secondary" onClick={goBack} aria-label={t.back} disabled={phase === "countdown"}>
               <IconBack />
             </Button>
-            <Button className="flex-1" disabled={!canCapture} onClick={() => canCapture && startCountdown()}>
+            <Button className="flex-1" onClick={() => canCapture && startCountdown()}>
               <IconCamera /> {phase === "countdown" ? count || "" : t.capture}
             </Button>
           </>
@@ -253,12 +255,35 @@ function GuidePanel({
           </p>
         </div>
       </div>
-      {/* Phones (portrait or landscape): Do and Don't side by side, so the camera keeps most of the screen. */}
-      <div className="grid grid-cols-2 sm:block compact:grid">
+      {/* Portrait phones: the checklist as short chips, so the camera keeps most of the screen. */}
+      <ul className="flex flex-wrap gap-1.5 px-3 py-2.5 sm:hidden">
+        {t.camChips.do.map((it) => (
+          <Chip key={it} good text={it} />
+        ))}
+        {t.camChips.dont.map((it) => (
+          <Chip key={it} good={false} text={it} />
+        ))}
+      </ul>
+      {/* Landscape phones: Do and Don't side by side. */}
+      <div className="grid grid-cols-2 max-sm:hidden sm:block compact:grid">
         <GuideList good heading={t.camDosHeading} items={t.camDos} />
         <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
       </div>
     </aside>
+  );
+}
+
+function Chip({ good, text }: { good: boolean; text: string }) {
+  const Icon = good ? IconCheck : IconX;
+  return (
+    <li
+      className={`inline-flex items-center gap-1 rounded-full py-1 pr-2.5 pl-1.5 text-[13.5px] leading-tight font-medium ${
+        good ? "bg-mint/10 text-mint" : "bg-coral/10 text-coral"
+      }`}
+    >
+      <Icon className="size-3.5 shrink-0" />
+      {text}
+    </li>
   );
 }
 

@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo, useReducer, useRef } from "react";
 import type { ShotId } from "@/lib/config";
 import { STRINGS, type Lang, type Strings } from "@/lib/strings";
-import { emptyConsent, emptyDetails, type Consent, type Details } from "@/lib/validate";
+import { emptyConsent, emptyDetails, isMinor, type Consent, type Details } from "@/lib/validate";
 
 export const STEPS = { about: 0, dos: 1, camera: 2, details: 3, consent: 4, review: 5, success: 6 } as const;
 export const STEP_COUNT = 7;
@@ -99,8 +99,12 @@ function reducer(s: State, a: Action): State {
       return { ...s, step: s.fromReview ? STEPS.review : Math.max(s.step - 1, 0), fromReview: false };
     case "dos":
       return { ...s, dosAccepted: a.value };
-    case "details":
-      return { ...s, details: { ...s.details, ...a.patch } };
+    case "details": {
+      const details = { ...s.details, ...a.patch };
+      // The age tick means "I am 18+" or "I am the guardian": clear it if that meaning flips.
+      const flipped = isMinor(details.age) !== isMinor(s.details.age);
+      return { ...s, details, consent: flipped ? { ...s.consent, ageOrGuardian: false } : s.consent };
+    }
     case "consent":
       return { ...s, consent: { ...s.consent, ...a.patch } };
     case "consentedAt":

@@ -29,7 +29,7 @@ const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirect
 const camera = walk(chunkDir)
   .filter((f) => f.endsWith(".js"))
   .map((f) => ({ f, buf: readFileSync(f) }))
-  .filter(({ buf }) => buf.includes("willReadFrequently") && buf.includes("getUserMedia"));
+  .filter(({ buf }) => buf.includes("getImageData") && buf.includes("getUserMedia"));
 
 console.log("First-load JS for / (gzip -9):");
 for (const [name, size] of rows.sort((a, b) => b[1] - a[1])) console.log(`  ${kb(size).padStart(9)}  ${name}`);

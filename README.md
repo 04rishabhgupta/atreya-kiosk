@@ -148,19 +148,19 @@ Under 4× CPU throttling with 2 s latency and ~50 KB/s, the cold first load took
 
 ## 6. Data-withdrawal runbook
 
-When a participant emails with a **Reference ID** (for example `ATR-2026-7KQ2MZ`):
+When a participant emails with a **Subject ID** (for example `ATR-7KQ2M-X4P9T`):
 
-1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Reference ID (column O). Note the **Drive Folder Link** (column Q) and the **Submission ID** (column P).
-2. **Delete the images.** Open the folder link. It is named `ATR-2026-7KQ2MZ_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg` and, if video is enabled, `face_video.webm` (submissions made before consent version 1.1 may also hold `consent_signature.png`). Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
+1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Subject ID (column B). Note the **Drive Folder Link** (column M in a new sheet).
+2. **Delete the images.** Open the folder link. It is named `ATR-7KQ2M-X4P9T_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg` and, if video is enabled, `face_video.webm`. Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
 3. **Delete the row.** Right-click the row number → Delete row. Do not just clear the cells.
 4. **Remove downstream copies.** If the data was already exported into a training set, remove it from that dataset and record which model versions included it.
-5. **Log and confirm.** Record the Reference ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
+5. **Log and confirm.** Record the Subject ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
 
-If the participant has lost their Reference ID, the row can only be narrowed down by its timestamp: from consent version 1.2 the kiosk collects no name or other identifying details. Verify the request carefully before deleting anything.
+If the participant has lost their Subject ID, the row can only be narrowed down by its timestamp, age and gender: the kiosk collects no name or contact details. Verify the request carefully before deleting anything.
 
 ## 7. How a submission works
 
-1. The client sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `front`, `left` and `right` (JPEG), `video` (if enabled) and the `website` honeypot field. A `signature` PNG is no longer sent (consent 1.1); one from an older client is still validated and stored.
+1. The client sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `front`, `left` and `right` (JPEG), `video` (if enabled) and the `website` honeypot field.
 2. The server runs its guards in this order:
    - Per-IP rate limit (10 per minute)
    - Content-type check
@@ -172,12 +172,12 @@ If the participant has lost their Reference ID, the row can only be narrowed dow
 3. **The server builds the row** in `SHEET_COLUMNS` order, escapes any cell starting with `=`, `+`, `-` or `@` with an apostrophe, base64-encodes the files, and POSTs everything plus the secret to the Apps Script URL (`lib/appsScript.ts`).
 4. **The script stores the submission** (`apps-script/Code.gs`), under a script lock so only one submission is handled at a time:
    1. It checks the secret.
-   2. **Already saved?** If the Sheet already contains this Submission ID, it returns the existing Reference ID. This covers a retry after a lost response.
-   3. **Folder.** It reuses the folder from an earlier partial attempt, which it remembers in Script Properties until the row is written. Otherwise it creates `ATR-YYYY-XXXXXX_YYYYMMDD`.
+   2. **Already saved?** If the Sheet already contains this Subject ID, it returns it without writing anything. This covers a retry after a lost response.
+   3. **Folder.** It reuses the folder from an earlier partial attempt, which it remembers in Script Properties until the row is written. Otherwise it creates `ATR-XXXXX-XXXXX_YYYYMMDD`.
    4. **Files.** It creates only the files that are not already in the folder.
    5. **Row.** It appends the row with `Sheets.Spreadsheets.Values.append(..., RAW)`, so nothing is parsed as a formula, a date or a number.
 
-   The Reference ID is derived from the kiosk's UUID `submissionKey`, so a retry always gets the same ID.
+   The Subject ID (`ATR-XXXXX-XXXXX`) is derived from the kiosk's random per-visit `submissionKey`, so a retry always gets the same ID. It has 10 random characters, so two participants sharing one is vanishingly unlikely; the key itself is not stored.
 5. **Retries.** The server retries up to 4 times within ~50 s, with backoff. It retries on network errors, "busy" replies (lock or quota) and non-JSON replies such as Google quota pages. A wrong secret or a wrong URL fails fast and is not retried.
 6. **Errors the client sees:**
    - `400 invalid` + field name: nothing was stored, so the client lets the participant edit and generates a fresh key.
@@ -188,15 +188,15 @@ If the participant has lost their Reference ID, the row can only be narrowed dow
 
    In every case the participant's photos stay in memory.
 
-**Logs** contain only event names, Reference IDs and error codes, on both the Next.js and the Apps Script side. They never contain names, health values or image bytes.
+**Logs** contain only event names, Subject IDs and error codes, on both the Next.js and the Apps Script side. They never contain names, health values or image bytes.
 
 ### Sheet columns
 
-`Timestamp | Patient Name | Age | Gender | Height (cm) | Weight (kgs) | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right` are the existing columns A–N. From consent version 1.2, Patient Name, Age, Gender, Height and Weight (B–F) are no longer collected and are left empty, so no column shifts.
+`Timestamp | Subject ID | Age | Gender | Diabetic Category | HbA1c | FBS (mg/dL)* | RBS | Currently taking any Medicine? | Facial Image - Front | Facial Image - Left | Facial Image - Right | Drive Folder Link | Consent Version | Consent Timestamp` (columns A–O, 15 in total), plus `Face Video` in P when `ENABLE_VIDEO` is on.
 
-These are appended after them: `Reference ID | Submission ID | Drive Folder Link | Consent Version | Consent Timestamp | Signature Link` (columns O–T, 20 columns in total), plus `Face Video` in U when `ENABLE_VIDEO` is on. `Signature Link` is kept so no column shifts; it is empty from consent version 1.1 onwards.
+Only collected data has a column. The Apps Script places each value by matching the header name in row 1, so columns can be inserted or reordered in the sheet without misaligning rows; a header the sheet lacks is added at its end. HbA1c, FBS, RBS and medicine are optional, so those cells can be empty.
 
-\* Column I is configurable through `COLUMN_I` in `lib/config.ts`. Set it to `null` to hide the field. The cell is then left empty, so no column ever shifts.
+\* Set `COLUMN_I` in `lib/config.ts` to `null` to hide the FBS field. Its column is then dropped and every later column moves one to the left, so do this before the sheet holds real rows.
 
 ## 8. Configuration (`lib/config.ts`)
 
@@ -224,14 +224,15 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] `/api/health` shows `configured: true` on the deployed URL.
 - [ ] Full flow on the actual kiosk hardware, in portrait, at 800×1280 and at 1080×1920.
 - [ ] The `/exec` URL returns `{"ok":true}`. A wrong `APPS_SCRIPT_SECRET` makes submissions fail with "server" and writes no row.
-- [ ] One real submission. A new row appears with correct IST timestamp, numbers as numbers, and working Drive links. A folder `ATR-…_YYYYMMDD` holds 4 files, and none of them is shared publicly.
+- [ ] One real submission. A new row appears with correct IST timestamp, numbers as numbers, and working Drive links. A folder `ATR-…_YYYYMMDD` holds 3 photos, and none of them is shared publicly.
 - [ ] Tap Submit, kill the Wi-Fi mid-upload, and you get an error with Retry and the edits locked. Restore the Wi-Fi and tap Retry: there is exactly **one** row and **one** folder.
 - [ ] Turning airplane mode on during Review leaves the photos intact, and Retry works.
 - [ ] Dos screen: Continue is disabled until "I have read this" is ticked.
-- [ ] Details: only health information is asked (no name, age, gender, height or weight). Diabetes status is required; a range error appears for HbA1c 25. Numeric keypads appear.
-- [ ] Consent: both statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.2-…` and a Consent Timestamp, and Patient Name, Age, Gender, Height and Weight are empty.
+- [ ] Details: age, gender and diabetes status are required; range errors appear for age 130 and HbA1c 25. Numeric keypads appear. No name, height or weight is asked.
+- [ ] Age under 18 switches the age statement on the consent screen to the parent/guardian wording, and unticks consent if it was already given.
+- [ ] Consent: all three statements and the full text are visible; "Agree and continue" is disabled until the single consent box is ticked. The row shows Consent Version `ATR-CONSENT-1.4-…` and a Consent Timestamp.
 - [ ] Review: each Edit link goes to its step, and Continue returns straight to Review.
-- [ ] Success: the Reference ID is shown, and the kiosk auto-resets after 15 s. Afterwards the camera light is off and Back does not reveal earlier data.
+- [ ] Success: the Subject ID is shown, and the kiosk auto-resets after 15 s. Afterwards the camera light is off and Back does not reveal earlier data.
 - [ ] 90 s with no touch brings up a 10 s countdown, then the kiosk resets. Tapping "I'm still here" cancels it.
 - [ ] "Start over" asks for confirmation, then wipes everything.
 - [ ] Hindi toggle: every screen is translated and nothing is clipped.
@@ -241,6 +242,7 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 - [ ] Camera permission denied: the friendly error screen appears and Try again works once permission is allowed.
 - [ ] No camera, or camera in use by another app: the matching message appears.
 - [ ] Capture is always enabled while the camera is live: no face, positioning or lighting check can disable it (even in low light or with nobody in frame). Tapping it shows a 5-4-3-2-1 countdown, then the photo is taken automatically (`COUNTDOWN_S` in `lib/config.ts`).
+- [ ] `?perf=1` shows the on-screen frame rate, Chrome version and memory, for checking slow kiosks.
 
 Nothing is detected or checked automatically. The oval and turn arrows are a positioning guide, and mask, glasses, cap and hair are shown as Do/Don't instructions beside the camera; the participant reviews each photo and can retake it.
 - [ ] Backgrounding the tab and returning: the camera resumes.

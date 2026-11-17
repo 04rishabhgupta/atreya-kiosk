@@ -61,6 +61,8 @@ const en = {
   // Kept to the essentials. These are instructions only: nothing is detected or checked automatically.
   camDos: ["Keep your whole face clearly visible", "Keep your hair away from your face"],
   camDonts: ["Wear a mask", "Wear glasses or sunglasses", "Wear a cap or hat"],
+  // Phones: the same checklist as short chips, so the camera keeps most of the screen.
+  camChips: { do: ["Face fully visible", "Hair off your face"], dont: ["No mask", "No glasses", "No cap or hat"] },
   countdownHint: "Hold still",
   camDenied: {
     title: "Camera access is blocked",
@@ -80,8 +82,11 @@ const en = {
 
   detailsTitle: "Your details",
   detailsIntro: "Fields marked * are required.",
+  detailsSecAbout: "About you",
   detailsSecHealth: "Health information",
   f: {
+    age: "Age (years) *",
+    gender: "Gender *",
     diabeticCategory: "Diabetes status *",
     hba1c: "HbA1c (%)",
     rbs: "Random blood sugar (mg/dL)",
@@ -89,6 +94,7 @@ const en = {
     medicineDetails: "Which medicines? (optional)",
   },
   optionalHint: "Optional — leave blank if you don't know",
+  testsOptional: "These tests are optional — leave blank if you don't know.", // phones: one note instead of three hints
   select: "Select…",
   yes: "Yes",
   no: "No",
@@ -105,17 +111,17 @@ const en = {
 
   consentTitle: "Your consent",
   consentSummary: [
-    "We collect 3 face photos and the health details you entered.",
+    "We collect 3 face photos, your age and gender, and the health details you entered.",
     "They are used only to train and test the atreya.ai research model — not to diagnose you.",
     "Only the named atreya.ai research team can access them. They are stored privately.",
     `We keep them for up to ${RETENTION_YEARS} years, or less if you withdraw.`,
-    `You can withdraw at any time: email ${CONTACT_EMAIL} with your Reference ID.`,
+    `You can withdraw at any time: email ${CONTACT_EMAIL} with your Subject ID.`,
   ],
   fullTextToggle: "Full consent text",
   fullText: [
     {
       h: "1. What we collect",
-      p: "Three photographs of your face (front, left and right), your diabetes status, optional blood test values and medicine information, and the time of consent.",
+      p: "Three photographs of your face (front, left and right), your age and gender, your diabetes status, optional blood test values and medicine information, and the time of consent.",
     },
     {
       h: "2. Why we collect it",
@@ -135,7 +141,7 @@ const en = {
     },
     {
       h: "6. Your rights",
-      p: `Taking part is voluntary. You may withdraw your consent at any time without giving a reason by emailing ${CONTACT_EMAIL} with your Reference ID. We will then delete your photos and details. You may also ask to access or correct your data, or raise a grievance at the same address. These rights are provided under India's Digital Personal Data Protection Act, 2023.`,
+      p: `Taking part is voluntary. You may withdraw your consent at any time without giving a reason by emailing ${CONTACT_EMAIL} with your Subject ID. We will then delete your photos and details. You may also ask to access or correct your data, or raise a grievance at the same address. These rights are provided under India's Digital Personal Data Protection Act, 2023.`,
     },
     {
       h: "7. Children",
@@ -146,6 +152,8 @@ const en = {
   consentAgreeIntro: "By ticking the box below, you confirm that:",
   cTraining: "I agree that my face photos and health details may be used to train the atreya.ai AI model",
   cNotDiagnosis: "I understand this is not a medical diagnosis",
+  cAdult: "I am 18 or older",
+  cGuardian: "I am the parent or legal guardian of the participant and I consent on their behalf",
   cAll: "I have read all of the information above and I give my consent",
   consentConfirm: "Agree and continue",
 
@@ -171,7 +179,7 @@ const en = {
 
   successTitle: "Thank you!",
   successBody: "Your photos and details were submitted securely. Your help makes atreya.ai better.",
-  refLabel: "Your Reference ID",
+  refLabel: "Your Subject ID",
   refHint: "Please note or photograph this ID. Quote it if you ever want your data withdrawn.",
   resetIn: "Starting over in {n} s",
   done: "Done",
@@ -232,6 +240,7 @@ const hi: Strings = {
   camDontsHeading: "न करें",
   camDos: ["पूरा चेहरा साफ़ दिखने दें", "बालों को चेहरे से दूर रखें"],
   camDonts: ["मास्क पहनना", "चश्मा या धूप का चश्मा पहनना", "टोपी या हैट पहनना"],
+  camChips: { do: ["पूरा चेहरा दिखे", "बाल चेहरे से दूर"], dont: ["मास्क नहीं", "चश्मा नहीं", "टोपी नहीं"] },
   countdownHint: "स्थिर रहें",
   camDenied: {
     title: "कैमरे की अनुमति नहीं है",
@@ -251,8 +260,11 @@ const hi: Strings = {
 
   detailsTitle: "आपकी जानकारी",
   detailsIntro: "* वाले खाने ज़रूरी हैं।",
+  detailsSecAbout: "आपके बारे में",
   detailsSecHealth: "स्वास्थ्य जानकारी",
   f: {
+    age: "उम्र (वर्ष) *",
+    gender: "लिंग *",
     diabeticCategory: "मधुमेह की स्थिति *",
     hba1c: "HbA1c (%)",
     rbs: "रैंडम ब्लड शुगर (mg/dL)",
@@ -260,6 +272,7 @@ const hi: Strings = {
     medicineDetails: "कौन-सी दवाएँ? (वैकल्पिक)",
   },
   optionalHint: "वैकल्पिक — पता न हो तो खाली छोड़ दें",
+  testsOptional: "ये जाँचें वैकल्पिक हैं — पता न हो तो खाली छोड़ दें।",
   select: "चुनें…",
   yes: "हाँ",
   no: "नहीं",
@@ -276,17 +289,17 @@ const hi: Strings = {
 
   consentTitle: "आपकी सहमति",
   consentSummary: [
-    "हम आपके चेहरे की 3 फ़ोटो और आपके द्वारा भरी गई स्वास्थ्य जानकारी लेते हैं।",
+    "हम आपके चेहरे की 3 फ़ोटो, आपकी उम्र और लिंग, और आपके द्वारा भरी गई स्वास्थ्य जानकारी लेते हैं।",
     "इनका उपयोग केवल atreya.ai रिसर्च मॉडल को प्रशिक्षित और परखने के लिए होगा — आपका निदान करने के लिए नहीं।",
     "केवल atreya.ai की नामित रिसर्च टीम ही इन्हें देख सकती है। इन्हें निजी रूप से संग्रहित किया जाता है।",
     `हम इन्हें अधिकतम ${RETENTION_YEARS} वर्ष तक रखते हैं, या आपके सहमति वापस लेने तक।`,
-    `आप कभी भी सहमति वापस ले सकते हैं: अपनी रेफ़रेंस ID के साथ ${CONTACT_EMAIL} पर ईमेल करें।`,
+    `आप कभी भी सहमति वापस ले सकते हैं: अपनी सब्जेक्ट ID के साथ ${CONTACT_EMAIL} पर ईमेल करें।`,
   ],
   fullTextToggle: "सहमति का पूरा पाठ",
   fullText: [
     {
       h: "1. हम क्या लेते हैं",
-      p: "आपके चेहरे की तीन फ़ोटो (सामने, बाएँ और दाएँ), आपकी मधुमेह की स्थिति, वैकल्पिक ब्लड टेस्ट मान और दवा की जानकारी, और सहमति का समय।",
+      p: "आपके चेहरे की तीन फ़ोटो (सामने, बाएँ और दाएँ), आपकी उम्र और लिंग, आपकी मधुमेह की स्थिति, वैकल्पिक ब्लड टेस्ट मान और दवा की जानकारी, और सहमति का समय।",
     },
     {
       h: "2. हम इसे क्यों लेते हैं",
@@ -306,7 +319,7 @@ const hi: Strings = {
     },
     {
       h: "6. आपके अधिकार",
-      p: `भाग लेना स्वैच्छिक है। आप बिना कोई कारण बताए कभी भी ${CONTACT_EMAIL} पर अपनी रेफ़रेंस ID के साथ ईमेल करके सहमति वापस ले सकते हैं। इसके बाद हम आपकी फ़ोटो और जानकारी मिटा देंगे। आप इसी पते पर अपने डेटा को देखने या सुधारने का अनुरोध, या शिकायत भी कर सकते हैं। ये अधिकार भारत के डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के तहत हैं।`,
+      p: `भाग लेना स्वैच्छिक है। आप बिना कोई कारण बताए कभी भी ${CONTACT_EMAIL} पर अपनी सब्जेक्ट ID के साथ ईमेल करके सहमति वापस ले सकते हैं। इसके बाद हम आपकी फ़ोटो और जानकारी मिटा देंगे। आप इसी पते पर अपने डेटा को देखने या सुधारने का अनुरोध, या शिकायत भी कर सकते हैं। ये अधिकार भारत के डिजिटल व्यक्तिगत डेटा संरक्षण अधिनियम, 2023 के तहत हैं।`,
     },
     {
       h: "7. बच्चे",
@@ -316,6 +329,8 @@ const hi: Strings = {
   consentAgreeIntro: "नीचे दिए बॉक्स पर टिक करके आप पुष्टि करते हैं कि:",
   cTraining: "मैं सहमत हूँ कि मेरे चेहरे की फ़ोटो और स्वास्थ्य जानकारी atreya.ai AI मॉडल को प्रशिक्षित करने में उपयोग की जा सकती है",
   cNotDiagnosis: "मैं समझता/समझती हूँ कि यह मेडिकल निदान नहीं है",
+  cAdult: "मेरी उम्र 18 वर्ष या उससे अधिक है",
+  cGuardian: "मैं प्रतिभागी का माता-पिता या कानूनी अभिभावक हूँ और उनकी ओर से सहमति देता/देती हूँ",
   cAll: "मैंने ऊपर दी गई सारी जानकारी पढ़ ली है और मैं अपनी सहमति देता/देती हूँ",
   consentConfirm: "सहमत हूँ, आगे बढ़ें",
 
@@ -341,7 +356,7 @@ const hi: Strings = {
 
   successTitle: "धन्यवाद!",
   successBody: "आपकी फ़ोटो और जानकारी सुरक्षित रूप से जमा हो गई। आपकी मदद से atreya.ai बेहतर बनता है।",
-  refLabel: "आपकी रेफ़रेंस ID",
+  refLabel: "आपकी सब्जेक्ट ID",
   refHint: "कृपया यह ID लिख लें या इसकी फ़ोटो ले लें। डेटा हटवाने के लिए इसी ID का उपयोग करें।",
   resetIn: "{n} सेकंड में फिर से शुरू होगा",
   done: "पूरा हुआ",

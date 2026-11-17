@@ -18,7 +18,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={`inline-flex min-h-14 min-w-14 items-center justify-center gap-2.5 rounded-xl px-5 text-[17px] font-semibold transition-colors duration-150 sm:min-h-16 sm:min-w-16 sm:px-6 sm:text-[18px] tall:min-h-[72px] tall:min-w-[72px] tall:text-[20px] compact:min-h-12 compact:min-w-12 ${styles[variant]} ${className}`}
+      className={`inline-flex min-h-14 min-w-14 items-center justify-center gap-2.5 rounded-xl px-5 text-[17px] font-semibold max-sm:gap-2 max-sm:px-3 transition-colors duration-150 sm:min-h-16 sm:min-w-16 sm:px-6 sm:text-[18px] tall:min-h-[72px] tall:min-w-[72px] tall:text-[20px] compact:min-h-12 compact:min-w-12 ${styles[variant]} ${className}`}
       {...rest}
     />
   );
