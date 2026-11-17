@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { SHOTS } from "@/lib/config";
-import { loadFaceDetector } from "../camera/detector";
 import { loadCaptureScreen } from "../lazy";
 import { useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
@@ -15,10 +14,9 @@ export default function DosScreen() {
   const { dosAccepted } = useKiosk();
   const { next, back, dispatch } = useActions();
 
-  // Warm the lazy camera chunk and the face detector (~4 MB once, then cached) while the participant reads.
+  // Warm the lazy camera chunk while the participant reads (helps on slow Wi-Fi).
   useEffect(() => {
     void loadCaptureScreen();
-    loadFaceDetector().catch(() => undefined); // the camera screen reports a failure itself
   }, []);
 
   return (

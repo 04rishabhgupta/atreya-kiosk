@@ -3,7 +3,7 @@
 A full-screen portrait web app that collects three face photos plus a short health form and consent from each participant, for training the atreya.ai metabolic-health model. It is built for low-spec kiosks (2 GB RAM, weak CPU/GPU, slow Wi-Fi). There are no accounts: anyone at the kiosk can use it, and the kiosk forgets everything after each participant.
 
 - **Stack:** Next.js 16 (App Router) with TypeScript and Tailwind 4. Storage is a **Google Apps Script web app** bound to the response Sheet, which writes the row and saves images to Drive. No Google Cloud project, service account or private key is needed.
-- **Runtime dependencies (4):** `next`, `react`, `react-dom`, `@mediapipe/tasks-vision` (face detector, loaded only on the camera steps). Dev-only: `typescript`, `@types/react`, `@types/node`, `tailwindcss`, `@tailwindcss/postcss`.
+- **Runtime dependencies (3):** `next`, `react`, `react-dom`. Dev-only: `typescript`, `@types/react`, `@types/node`, `tailwindcss`, `@tailwindcss/postcss`.
 - **Browser:** Chromium 111 or newer, the Next 16 baseline. That covers any Android 7+ device with an updated Chrome or WebView.
 
 ```
@@ -82,7 +82,6 @@ npm run size        # gzipped first-load JS report (run after build)
 
 The request body cap is 4 MB, which stays under Vercel's 4.5 MB limit. Three photos come to roughly 0.5–1.2 MB.
 
-**Face detector assets.** `npm run dev` and `npm run build` first run `scripts/copy-mediapipe.mjs`, which copies the MediaPipe WebAssembly runtime from `node_modules` into `public/mediapipe/wasm-<version>/` (git-ignored). The 230 KB BlazeFace model is committed at `public/mediapipe/`. Both are served from the app's own origin with a one-year immutable cache, so each kiosk downloads the ~13.5 MB runtime (~4 MB gzipped) once. The CSP includes `'wasm-unsafe-eval'` so the runtime can compile; it does not allow JavaScript `eval`. The MediaPipe library also tries to send anonymous usage telemetry to `odml.pa.googleapis.com`; the `connect-src 'self'` policy blocks it (one console error per page load, after which the library stops trying), so no data leaves the kiosk. When upgrading `@mediapipe/tasks-vision`, update `MEDIAPIPE_VERSION` in `lib/config.ts` to match (the copy script fails the build if they differ).
 
 **Any Node host:** run `npm ci && npm run build && npm start` behind an HTTPS reverse proxy such as Caddy or nginx. HTTPS is mandatory because of the camera and the HSTS header.
 
@@ -103,7 +102,7 @@ Security headers are set in `next.config.ts`:
 - Install Chrome (or Fully Kiosk Browser) and open `https://YOUR-DOMAIN/`.
 - **Pre-grant the camera:** open the site once, tap Allow, then check Chrome → Site settings → Camera to confirm the site is listed as allowed.
 - Pin the screen (Settings → Security → App pinning), or use Fully Kiosk's kiosk mode with "Launch on boot".
-- Face checks use the bundled MediaPipe detector; no Chrome flags are needed. If the detector cannot start on a device, Capture stays disabled and the participant is asked to call staff (there is deliberately no bypass).
+- No face detection is used, so no Chrome flags are needed.
 - Settings: screen timeout set to never (or keep-awake in Fully Kiosk), auto-rotate off, portrait.
 
 **Linux / Raspberry Pi / ChromeOS-style box (Chromium)**
@@ -241,13 +240,10 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 **Camera**
 - [ ] Camera permission denied: the friendly error screen appears and Try again works once permission is allowed.
 - [ ] No camera, or camera in use by another app: the matching message appears.
-- [ ] Low light shows "Too dark". A lamp behind the participant shows "Too bright". Moving shows "Hold still".
-- [ ] Capture is enabled as soon as a face is clearly visible with even light, at any comfortable distance and anywhere in the picture (the oval is a guide only). Nothing captures by itself (`AUTO_CAPTURE` is off): the participant taps Capture.
-- [ ] A second person in the frame, too dark/too bright, glare, or one side of the face in shadow (front shot) each disable Capture with their own message. **Calibrate on site:** `sideShadowMax`, `overexposedMax` and the `*ScoreMin` values in `lib/config.ts` were tuned on test images, not real participants.
-- [ ] Letting someone step into the frame during the 3-2-1 cancels the countdown.
+- [ ] Capture is always enabled while the camera is live: no face, positioning or lighting check can disable it (even in low light or with nobody in frame). Tapping it shows a 5-4-3-2-1 countdown, then the photo is taken automatically (`COUNTDOWN_S` in `lib/config.ts`).
 
-What is detected and what is not: the detector checks that exactly one face is in the frame and that it is clearly visible (detection confidence); lighting is measured on that face (dark, bright, glare, side shadow). Distance, position in the oval and head turn are **not** enforced; the oval and turn arrows are guidance. **Glasses, masks, caps and hair over the face are not detected** (no lightweight model does this reliably, and a cap check would also flag turbans and headscarves); they are shown as Do/Don't instructions beside the camera. The detector finds faces up to roughly 2 m from the camera; much further away, it reports no face.
-- [ ] Backgrounding the tab and returning: the camera resumes and the check loop restarts.
+Nothing is detected or checked automatically. The oval and turn arrows are a positioning guide, and mask, glasses, cap and hair are shown as Do/Don't instructions beside the camera; the participant reviews each photo and can retake it.
+- [ ] Backgrounding the tab and returning: the camera resumes.
 - [ ] Captured JPEGs are 1280 px or less on the long edge, roughly 400 KB or under, and **not** mirrored. Check the Drive file.
 
 **Performance and security**
@@ -268,8 +264,7 @@ components/
   KioskProvider.tsx        useReducer + Context state (memory only), blob-URL lifecycle
   IdleGuard.tsx, lazy.ts
   screens/                 About, Dos, Capture (lazy), Details, Consent, Review, Success
-  camera/                  CameraView (memoised), FaceOverlay, checks.ts (pixel checks, prompt rules, capture),
-                           detector.ts (lazy, shared MediaPipe face detector)
+  camera/                  CameraView (memoised), FaceOverlay, checks.ts (oval geometry, still capture)
   ui/                      Button, ScreenLayout, Dialog, controls, icons
 lib/
   config.ts, strings.ts, validate.ts, appsScript.ts, rateLimit.ts, time.ts, submit.ts

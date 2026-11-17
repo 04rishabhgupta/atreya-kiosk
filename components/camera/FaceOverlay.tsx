@@ -1,24 +1,11 @@
 import { memo } from "react";
 import { IconArrow } from "../ui/icons";
-import { ovalFor, type Level } from "./checks";
+import { ovalFor } from "./checks";
 
-const COLOR: Record<Level, string> = { bad: "#F0897D", warn: "#E6B25A", good: "#86D4AE" };
-
-/** Static SVG oval + veil (dashed until every check passes) and a nudge arrow for profile shots. */
-export const FaceOverlay = memo(function FaceOverlay({
-  w,
-  h,
-  level,
-  turn,
-}: {
-  w: number;
-  h: number;
-  level: Level;
-  turn: "none" | "left" | "right";
-}) {
+/** Static SVG oval + veil and a nudge arrow for profile shots: a positioning guide only, never a check. */
+export const FaceOverlay = memo(function FaceOverlay({ w, h, turn }: { w: number; h: number; turn: "none" | "left" | "right" }) {
   if (!w || !h) return null;
   const o = ovalFor(w, h);
-  const color = COLOR[level];
   // The preview is mirrored, so "turn to your left" moves the face towards the screen's left.
   // The oval nearly fills the column width, so the arrow sits above it rather than beside it.
   return (
@@ -35,10 +22,9 @@ export const FaceOverlay = memo(function FaceOverlay({
           rx={o.rx}
           ry={o.ry}
           fill="none"
-          stroke={color}
+          stroke="#FFFFFF"
+          strokeOpacity={0.9}
           strokeWidth={4}
-          strokeDasharray={level === "good" ? undefined : "12 10"}
-          style={{ transition: "stroke 0.2s" }}
         />
       </svg>
       {turn !== "none" && (

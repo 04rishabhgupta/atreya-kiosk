@@ -14,18 +14,9 @@ export const IDLE_COUNTDOWN_S = 10;
 export const SUCCESS_RESET_S = 15;
 
 // ---- Camera ----
-// Off: with no positioning checks, "every check passes" happens the moment a well-lit face appears, which is
-// too early (participants are still settling or removing glasses). They tap Capture when ready instead.
-export const AUTO_CAPTURE = false;
+// Tap Capture, then this many seconds (shown 5-4-3-2-1) to get into position before the photo is taken.
+export const COUNTDOWN_S = 5;
 
-// Self-hosted MediaPipe face detector (BlazeFace short-range). The runtime is copied into
-// public/mediapipe/wasm-<version> by scripts/copy-mediapipe.mjs, which checks this matches package.json.
-export const MEDIAPIPE_VERSION = "1.1.1";
-export const FACE_DETECTOR = {
-  wasmBase: `/mediapipe/wasm-${MEDIAPIPE_VERSION}`,
-  model: "/mediapipe/blaze_face_short_range-f16-v1.tflite",
-  minConfidence: 0.5, // detections below this are ignored entirely (also when counting people)
-} as const;
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
@@ -43,20 +34,6 @@ export const IMAGE = {
   targetBytes: 400_000,
 } as const;
 
-export const CHECKS = {
-  intervalMs: 250, // ~4 checks per second
-  faceIntervalMs: 333, // face detection is pricier: ~3 per second
-  analysisLongEdge: 160,
-  // Lighting is measured on the detected face (not on a fixed region), so it works wherever the face is.
-  brightnessMin: 70, // mean luma 0-255 on the face
-  brightnessMax: 205,
-  overexposedMax: 0.06, // max fraction of face pixels that are blown out (luma >= 248)
-  sideShadowMax: 0.3, // front shot: max left/right brightness imbalance, as a fraction of the brighter half
-  goodHoldMs: 1_000, // auto-capture only (see AUTO_CAPTURE)
-  frontScoreMin: 0.7, // front shot: detector confidence needed for "face clearly visible"
-  profileScoreMin: 0.5, // turned shots: the detector is naturally less sure on a 45-degree profile
-} as const;
-
 export type ShotId = "front" | "left" | "right";
 export interface ShotConfig {
   id: ShotId;
@@ -64,8 +41,7 @@ export interface ShotConfig {
   fileName: string; // Drive file name
   // Which way the participant turns their head. "Left" = left side of the face shown,
   // so they turn to their right. Flip here if your protocol defines it the other way.
-  // Also selects the checks: "none" = front (stricter confidence, side-shadow check);
-  // turned shots use the profile confidence threshold. The turn itself is guided, not enforced.
+  // The turn is shown as guidance (instruction + arrow) only; it is never checked.
   turn: "none" | "left" | "right";
 }
 

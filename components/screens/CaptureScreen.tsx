@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AUTO_CAPTURE, ENABLE_VIDEO, SHOTS, VIDEO } from "@/lib/config";
+import { COUNTDOWN_S, ENABLE_VIDEO, SHOTS, VIDEO } from "@/lib/config";
 import { fmt } from "@/lib/strings";
 import { CameraView, type CameraError, type CameraHandle } from "../camera/CameraView";
 import { markActive } from "../IdleGuard";
@@ -21,32 +21,25 @@ export default function CaptureScreen() {
   const firstMissing = SHOTS.findIndex((s) => !captures[s.id]);
   const [idx, setIdx] = useState(firstMissing === -1 ? 0 : firstMissing);
   const [phase, setPhase] = useState<Phase>(() => (captures[SHOTS[idx]!.id] ? "review" : "live"));
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(COUNTDOWN_S);
   const [flash, setFlash] = useState(0);
   const [error, setError] = useState<CameraError | null>(null);
   const [camKey, setCamKey] = useState(0);
-  // Capture is allowed only while the automatic checks pass: a clearly visible face, one person, even lighting.
-  const [ready, setReady] = useState(false);
-  const canCapture = phase === "live" && ready;
+  // Capture is always available while the camera is live: no face, positioning or lighting check can block it.
+  const canCapture = phase === "live";
 
   const shot = SHOTS[idx]!;
   const current = captures[shot.id];
 
+  // Tap Capture -> 5-4-3-2-1 on screen (time to get into position) -> the photo is taken automatically.
   const startCountdown = useCallback(() => {
     markActive();
-    setCount(3);
+    setCount(COUNTDOWN_S);
     setPhase("countdown");
   }, []);
-  const onAutoCapture = startCountdown; // CameraView only fires this when autoCapture (below) allows it
   const onError = useCallback((e: CameraError) => setError(e), []);
-  const onReady = useCallback((r: boolean) => setReady(r), []);
 
-  // Checks keep running during the 3-2-1: if anything fails before the shot, cancel and show why.
-  useEffect(() => {
-    if (phase === "countdown" && !ready) setPhase("live");
-  }, [phase, ready]);
-
-  // 3-2-1, then flash + grab.
+  // Count down once a second, then flash + grab.
   useEffect(() => {
     if (phase !== "countdown") return;
     if (count > 0) {
@@ -194,14 +187,8 @@ export default function CaptureScreen() {
             key={camKey}
             ref={cam}
             turn={shot.turn}
-            active={phase === "live" || phase === "countdown"}
-            showGuidance={phase === "live"}
-            autoCapture={AUTO_CAPTURE && phase === "live"}
-            goodHint={AUTO_CAPTURE ? t.guide.goodAuto : t.guide.good}
-            guide={t.guide}
+            showGuide={phase === "live" || phase === "countdown"}
             onError={onError}
-            onAutoCapture={onAutoCapture}
-            onReady={onReady}
           />
           {phase === "countdown" && count > 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-black/25">
@@ -212,7 +199,7 @@ export default function CaptureScreen() {
                 {count}
               </span>
               <span className="mt-2 rounded-full bg-black/55 px-5 py-2 text-[17px] font-medium text-ivory tall:text-[20px]">
-                {t.guide.holdStill}
+                {t.countdownHint}
               </span>
             </div>
           )}
@@ -271,18 +258,6 @@ function GuidePanel({
         <GuideList good heading={t.camDosHeading} items={t.camDos} />
         <GuideList good={false} heading={t.camDontsHeading} items={t.camDonts} divider />
       </div>
-      {/* What actually gates Capture, so a disabled button is never a surprise. */}
-      <section className="mt-auto hidden border-t border-hair bg-surface-2 px-5 py-4 sm:block tall:px-7 tall:py-6 compact:hidden">
-        <h2 className="t-kicker mb-2 tall:mb-3">{t.camAutoHeading}</h2>
-        <ul>
-          {t.camAuto.map((it) => (
-            <li key={it} className="flex items-center gap-3 py-1 text-[15px] leading-snug text-fg-2 tall:py-2 tall:text-[19px]">
-              <span className="size-1.5 shrink-0 rounded-full bg-mint" />
-              {it}
-            </li>
-          ))}
-        </ul>
-      </section>
     </aside>
   );
 }
