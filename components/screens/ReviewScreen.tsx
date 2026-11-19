@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { COLUMN_I, CONSENT_VERSION, DIABETIC_CATEGORIES, ENABLE_VIDEO, GENDERS, SHOTS } from "@/lib/config";
 import { fmt } from "@/lib/strings";
 import { hasErrors, validateConsent, validateDetails } from "@/lib/validate";
-import { postSubmission } from "@/lib/submit";
+import { submitWithPhotos } from "@/lib/submit";
 import { STEPS, useActions, useKiosk, useStrings } from "../KioskProvider";
 import { Button } from "../ui/Button";
 import { IconBack, IconCheck, IconRefresh } from "../ui/icons";
@@ -69,14 +69,12 @@ export default function ReviewScreen() {
         consent: { ...c, consentedAt: s.consentedAt, version: CONSENT_VERSION },
       }),
     );
-    for (const sh of SHOTS) {
-      const cap = s.captures[sh.id];
-      if (cap) form.append(sh.id, cap.blob, sh.fileName);
-    }
     if (ENABLE_VIDEO && s.video) form.append("video", s.video.blob, "face_video");
     form.append("website", honeypot.current?.value ?? "");
+    // The 1920x1080 PNG photos (~3.5 MB each) are uploaded first, each on its own, then this form.
+    const photos = SHOTS.flatMap((sh) => (s.captures[sh.id] ? [{ id: sh.id, blob: s.captures[sh.id]!.blob }] : []));
 
-    const res = await postSubmission(form, (p) => dispatch({ type: "submit", patch: { progress: p } }));
+    const res = await submitWithPhotos(s.submissionKey, photos, form, (p) => dispatch({ type: "submit", patch: { progress: p } }));
     if (res.ok) return dispatch({ type: "submitted", referenceId: res.referenceId });
 
     // 4xx (except 429) means nothing was stored: allow edits with a fresh key.

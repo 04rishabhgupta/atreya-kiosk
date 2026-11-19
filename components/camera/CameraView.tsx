@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { CAMERA_CONSTRAINTS } from "@/lib/config";
-import { grabStill } from "./checks";
+import { grabStill, previewZoom, savedBandHeight } from "./checks";
 import { FaceOverlay } from "./FaceOverlay";
 
 export type CameraError = "denied" | "missing" | "busy" | "insecure" | "error";
@@ -36,6 +36,7 @@ export const CameraView = memo(function CameraView({ ref, turn, showGuide, onErr
   const box = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const [frame, setFrame] = useState({ w: 0, h: 0 }); // the camera's actual resolution
   const cb = useRef({ onError });
   cb.current = { onError };
 
@@ -101,10 +102,24 @@ export const CameraView = memo(function CameraView({ ref, turn, showGuide, onErr
     return () => ro.disconnect();
   }, []);
 
+  const onFrame = (e: React.SyntheticEvent<HTMLVideoElement>) =>
+    setFrame({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight });
+  const zoom = previewZoom(size.w, size.h, frame.w, frame.h);
+
   return (
     <div ref={box} className="relative h-full w-full overflow-hidden bg-black">
-      <video ref={video} className="mirror absolute inset-0 h-full w-full object-cover" playsInline muted autoPlay />
-      {showGuide && <FaceOverlay w={size.w} h={size.h} turn={turn} />}
+      {/* Mirrored and zoomed together (uniform scale: no distortion). The zoom is preview-only. */}
+      <video
+        ref={video}
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ transform: `scale(${-zoom}, ${zoom})` }}
+        onLoadedMetadata={onFrame}
+        onResize={onFrame}
+        playsInline
+        muted
+        autoPlay
+      />
+      {showGuide && <FaceOverlay w={size.w} h={size.h} bandH={savedBandHeight(size.w, size.h, frame.w, frame.h, zoom)} turn={turn} />}
     </div>
   );
 });

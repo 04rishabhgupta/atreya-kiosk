@@ -18,6 +18,13 @@ export interface ScriptFile {
   data: string; // base64
 }
 
+/** A photo already uploaded in pieces (see ScriptPartRequest); the script joins them into `name`. */
+export interface ScriptPhoto {
+  header: string; // sheet column that receives this photo's link
+  name: string; // e.g. "front.png"
+  count: number; // number of pieces
+}
+
 export interface ScriptRequest {
   submissionKey: string;
   referenceId: string;
@@ -25,6 +32,18 @@ export interface ScriptRequest {
   headers: string[];
   cells: Record<string, string | number>;
   files: ScriptFile[];
+  parts: ScriptPhoto[];
+}
+
+/** One piece of one photo, stored in the participant's folder before the final request. */
+export interface ScriptPartRequest {
+  action: "part";
+  submissionKey: string;
+  referenceId: string;
+  dateStamp: string;
+  name: string;
+  index: number;
+  data: string; // base64
 }
 
 export const isConfigured = () => !!process.env.APPS_SCRIPT_URL && !!process.env.APPS_SCRIPT_SECRET;
@@ -41,13 +60,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * POST with retry + backoff. Safe to retry: the script dedupes on submissionKey under a lock,
  * so a retry after a timeout returns the already-saved Subject ID instead of a second row.
  */
-export async function sendToScript(req: ScriptRequest, budgetMs = 50_000): Promise<{ referenceId: string; duplicate: boolean }> {
+export async function sendToScript(req: ScriptRequest | ScriptPartRequest, budgetMs = 50_000): Promise<{ referenceId: string; duplicate: boolean }> {
   const url = process.env.APPS_SCRIPT_URL;
   const secret = process.env.APPS_SCRIPT_SECRET;
   if (!url || !secret) throw new BackendError("config", "missing env");
   if (!url.startsWith("https://script.google.com/")) throw new BackendError("config", "bad url");
 
-  const body = JSON.stringify({ ...req, cells: Object.fromEntries(Object.entries(req.cells).map(([k, v]) => [k, safeCell(v)])), secret });
+  const body = JSON.stringify(
+    "cells" in req ? { ...req, cells: Object.fromEntries(Object.entries(req.cells).map(([k, v]) => [k, safeCell(v)])), secret } : { ...req, secret },
+  );
   const deadline = Date.now() + budgetMs;
   let last = new BackendError("busy", "no attempt");
 

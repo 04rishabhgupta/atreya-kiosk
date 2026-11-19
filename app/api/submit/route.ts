@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
-import { COLUMN_I, CONSENT_VERSION, ENABLE_VIDEO, LIMITS, SHEET_COLUMNS, SHOTS, VIDEO } from "@/lib/config";
-import { BackendError, sendToScript, type ScriptFile } from "@/lib/appsScript";
+import { COLUMN_I, CONSENT_VERSION, ENABLE_VIDEO, LIMITS, MAX_PHOTO_PARTS, SHEET_COLUMNS, SHOTS, VIDEO } from "@/lib/config";
+import { BackendError, sendToScript, type ScriptFile, type ScriptPhoto } from "@/lib/appsScript";
 import { allow, clientIp } from "@/lib/rateLimit";
+import { subjectId, subjectIdFromKey } from "@/lib/subjectId";
 import { formatIST, ymdIST } from "@/lib/time";
 import { parseNum, parsePayload, type SubmissionPayload } from "@/lib/validate";
 
@@ -19,17 +19,6 @@ const log = (evt: string, extra: Record<string, string | number> = {}) =>
 const inflight = new Map<string, Promise<string>>();
 const done = new Map<string, { ref: string; at: number }>();
 const DONE_TTL_MS = 60 * 60_000;
-
-// Subject ID: ATR-XXXXX-XXXXX, derived from the kiosk's submissionKey so every retry gets the same ID.
-// It is also what the script dedupes on, so it must not repeat: 10 characters (50 bits) keep the chance
-// of two participants sharing one below 1 in 200,000 even after 100,000 submissions.
-const CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-const subjectId = (bytes: Uint8Array) => {
-  let s = "";
-  for (let i = 0; i < 10; i++) s += CROCKFORD[(bytes[i] ?? 0) % 32];
-  return `ATR-${s.slice(0, 5)}-${s.slice(5)}`;
-};
-const subjectIdFromKey = (key: string) => subjectId(createHash("sha256").update(key).digest());
 
 const MAGIC: Record<string, number[]> = {
   "image/jpeg": [0xff, 0xd8, 0xff],
@@ -78,7 +67,7 @@ function consentTime(iso: string, now: Date): Date {
   return Number.isFinite(t) && t <= now.getTime() + 5 * 60_000 && t >= now.getTime() - 6 * 3600_000 ? new Date(t) : now;
 }
 
-async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promise<string> {
+async function processSubmission(p: SubmissionPayload, uploads: Upload[], photos: ScriptPhoto[]): Promise<string> {
   const now = new Date();
   const key = p.submissionKey;
   const d = p.details;
@@ -114,8 +103,9 @@ async function processSubmission(p: SubmissionPayload, uploads: Upload[]): Promi
     headers: SHEET_COLUMNS,
     cells,
     files,
+    parts: photos,
   });
-  log(res.duplicate ? "submit_duplicate" : "submit_ok", { ref: res.referenceId, files: files.length });
+  log(res.duplicate ? "submit_duplicate" : "submit_ok", { ref: res.referenceId, files: files.length, photos: photos.length });
   return res.referenceId;
 }
 
@@ -153,11 +143,33 @@ export async function POST(req: Request) {
     return json({ error: "invalid", field: "data" }, 400);
   }
 
+  // Photos: normally already uploaded in pieces via /api/submit/photo, listed in `photos` as piece counts
+  // ({"front": 1, ...}). Older kiosk pages still send a small JPEG per shot inside this request instead.
+  let manifest: Record<string, unknown> = {};
+  const manifestStr = form.get("photos");
+  if (typeof manifestStr === "string") {
+    try {
+      const m: unknown = JSON.parse(manifestStr);
+      if (typeof m === "object" && m !== null) manifest = m as Record<string, unknown>;
+    } catch {
+      return json({ error: "invalid", field: "photos" }, 400);
+    }
+  }
   const uploads: Upload[] = [];
+  const photos: ScriptPhoto[] = [];
   for (const s of SHOTS) {
-    const f = await checkFile(form.get(s.id), ["image/jpeg"], LIMITS.maxImageBytes);
-    if (typeof f === "string") return json({ error: f === "size" ? "too_large" : "invalid", field: s.id }, 400);
-    uploads.push({ field: s.id, name: s.fileName, mime: "image/jpeg", file: f });
+    const legacy = form.get(s.id);
+    if (legacy !== null) {
+      const f = await checkFile(legacy, ["image/jpeg"], LIMITS.maxImageBytes);
+      if (typeof f === "string") return json({ error: f === "size" ? "too_large" : "invalid", field: s.id }, 400);
+      uploads.push({ field: s.id, name: `${s.id}.jpg`, mime: "image/jpeg", file: f });
+      continue;
+    }
+    const count = manifest[s.id];
+    if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > MAX_PHOTO_PARTS) {
+      return json({ error: "invalid", field: s.id }, 400);
+    }
+    photos.push({ header: s.column, name: s.fileName, count });
   }
   if (ENABLE_VIDEO && form.get("video") !== null) {
     const f = await checkFile(form.get("video"), ["video/webm", "video/mp4"], VIDEO.maxBytes + 200_000);
@@ -174,7 +186,7 @@ export async function POST(req: Request) {
 
   let job = inflight.get(key);
   if (!job) {
-    job = processSubmission(parsed.value, uploads);
+    job = processSubmission(parsed.value, uploads, photos);
     inflight.set(key, job);
   }
   try {

@@ -3,9 +3,9 @@ import { IconArrow } from "../ui/icons";
 import { ovalFor } from "./checks";
 
 /** Static SVG oval + veil and a nudge arrow for profile shots: a positioning guide only, never a check. */
-export const FaceOverlay = memo(function FaceOverlay({ w, h, turn }: { w: number; h: number; turn: "none" | "left" | "right" }) {
+export const FaceOverlay = memo(function FaceOverlay({ w, h, bandH, turn }: { w: number; h: number; bandH: number; turn: "none" | "left" | "right" }) {
   if (!w || !h) return null;
-  const o = ovalFor(w, h);
+  const o = ovalFor(w, h, bandH);
   // The preview is mirrored, so "turn to your left" moves the face towards the screen's left.
   // The oval nearly fills the column width, so the arrow sits above it rather than beside it.
   return (

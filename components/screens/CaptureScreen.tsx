@@ -183,7 +183,7 @@ export default function CaptureScreen() {
       </ol>
 
       {/* Portrait kiosk: camera and guidance side by side, so instructions stay visible while posing. */}
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 sm:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] sm:grid-rows-1 sm:gap-5 tall:gap-6 compact:gap-3">
+      <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] gap-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] sm:grid-rows-1 sm:gap-5 tall:gap-6 compact:gap-3">
         <div className="relative min-h-0 overflow-hidden rounded-2xl bg-black shadow-card">
           <CameraView
             key={camKey}

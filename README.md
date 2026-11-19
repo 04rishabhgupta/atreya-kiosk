@@ -7,7 +7,8 @@ A full-screen portrait web app that collects three face photos plus a short heal
 - **Browser:** Chromium 111 or newer, the Next 16 baseline. That covers any Android 7+ device with an updated Chrome or WebView.
 
 ```
-kiosk browser --multipart--> Next.js /api/submit --JSON + base64 + secret--> Apps Script web app --> Drive folder + Sheet row
+kiosk browser --PNG pieces (≤4 MB)--> Next.js /api/submit/photo --> Apps Script (stores the pieces in Drive)
+              --multipart---------> Next.js /api/submit --JSON + secret--> Apps Script web app --> joins pieces, Drive folder + Sheet row
               (validation, rate limit, honeypot)                         (lock, dedupe, RAW append)
 ```
 
@@ -32,7 +33,7 @@ Use a **dedicated team Google account** (for example `atreya-data@…`) to own t
    - Copy the **Web app URL**, which ends in `/exec`.
    - "Anyone" is required because the Next.js server calls the script without a Google login. The `SECRET` is what stops anyone else from writing to it. The URL and secret live only on the server.
 5. **Check it.** Opening the `/exec` URL in a browser should show `{"ok":true,"service":"atreya-kiosk"}`.
-6. **Updating the script later:** use **Deploy → Manage deployments → Edit → Version: New version**. This keeps the same URL. A *new deployment* would change the URL.
+6. **Updating the script later:** use **Deploy → Manage deployments → Edit → Version: New version**. This keeps the same URL. **Required after this update:** the script now accepts photo pieces (`action: "part"`). A *new deployment* would change the URL.
 7. **Lock down access.** Share the Sheet and the folder with **named team accounts only**. Turn off "anyone with the link" sharing, and review the members list every quarter. Uploaded files inherit the folder's sharing and are never made public. The web app's "Anyone" setting does not expose the Sheet or the files.
 
 ### Environment variables
@@ -50,7 +51,7 @@ All of these are read **only on the server**. Nothing about the backend reaches 
 
 - **Speed:** each submission takes about 3–8 s inside the script, mostly Drive file creation. Submissions are serialised by a script lock, so throughput is roughly 8–15 per minute across all kiosks. That is plenty for kiosks seeing one participant every ~3 minutes.
 - **Daily runtime quota:** about 90 minutes a day on a consumer Gmail account, which is roughly 700+ submissions, and 6 hours a day on Google Workspace. When the quota is hit, the kiosk shows "service busy" and keeps the photos so Retry works later.
-- **Payload:** base64 images (~1.7 MB per submission) are well within Apps Script's limits.
+- **Payload:** photos are 1920×1080 PNG, about 2–4 MB each and roughly 10–11 MB per participant. Each one is sent to the script in pieces of at most 4 MB (about 5.3 MB as base64), then joined in Drive. Expect each submission to take noticeably longer in the script than the old JPEG flow, and plan Drive storage at about 11 MB per participant.
 
 ## 2. Run locally
 
@@ -80,7 +81,7 @@ npm run size        # gzipped first-load JS report (run after build)
 3. Set the function region to **Mumbai (`bom1`)** to keep latency low for Indian kiosks. Apps Script itself runs in Google's US data centres.
 4. `app/api/submit` sets `maxDuration = 60`. Check that your plan allows that.
 
-The request body cap is 4 MB, which stays under Vercel's 4.5 MB limit. Three photos come to roughly 0.5–1.2 MB.
+Every request stays under Vercel's 4.5 MB limit. Each photo is uploaded on its own to `/api/submit/photo` in pieces of at most 4 MB, and the final `/api/submit` carries only the details (4 MB cap). Three PNG photos come to roughly 10–11 MB, so allow for slower uploads on weak Wi-Fi.
 
 
 **Any Node host:** run `npm ci && npm run build && npm start` behind an HTTPS reverse proxy such as Caddy or nginx. HTTPS is mandatory because of the camera and the HSTS header.
@@ -151,7 +152,7 @@ Under 4× CPU throttling with 2 s latency and ~50 KB/s, the cold first load took
 When a participant emails with a **Subject ID** (for example `ATR-7KQ2M-X4P9T`):
 
 1. **Find the row.** Open the Sheet → `Form_Responses` and use Ctrl+F for the Subject ID (column B). Note the **Drive Folder Link** (column M in a new sheet).
-2. **Delete the images.** Open the folder link. It is named `ATR-7KQ2M-X4P9T_YYYYMMDD` and holds `front.jpg`, `left.jpg`, `right.jpg` and, if video is enabled, `face_video.webm`. Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
+2. **Delete the images.** Open the folder link. It is named `ATR-7KQ2M-X4P9T_YYYYMMDD` and holds `front.png`, `left.png`, `right.png` (older submissions: `.jpg`) and, if video is enabled, `face_video.webm`. Delete the folder, then **empty the owner account's Drive trash**. Trash auto-purges after 30 days. Delete it manually so removal is immediate.
 3. **Delete the row.** Right-click the row number → Delete row. Do not just clear the cells.
 4. **Remove downstream copies.** If the data was already exported into a training set, remove it from that dataset and record which model versions included it.
 5. **Log and confirm.** Record the Subject ID, the date and who actioned it in a withdrawal log. That log holds no personal data beyond the ID. Reply to the participant to confirm. Aim to finish within 30 days.
@@ -160,7 +161,8 @@ If the participant has lost their Subject ID, the row can only be narrowed down 
 
 ## 7. How a submission works
 
-1. The client sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `front`, `left` and `right` (JPEG), `video` (if enabled) and the `website` honeypot field.
+1. The client first uploads each photo (`front.png`, `left.png`, `right.png`, exactly 1920×1080 PNG) to `POST /api/submit/photo?key&shot&part&parts` as raw `application/octet-stream` pieces of at most 4 MB. That endpoint checks the rate limit (60 pieces per minute), the piece size, and on the first piece the PNG signature and that the header says 1920×1080, then the script stores the piece as `<name>.part<i>` in the participant's folder.
+   It then sends `POST /api/submit` as `multipart/form-data`. The body holds `data` (JSON), `photos` (the piece count per shot), `video` (if enabled) and the `website` honeypot field. Older kiosk pages that still send `front`, `left` and `right` JPEG files in this request keep working.
 2. The server runs its guards in this order:
    - Per-IP rate limit (10 per minute)
    - Content-type check
@@ -174,7 +176,7 @@ If the participant has lost their Subject ID, the row can only be narrowed down 
    1. It checks the secret.
    2. **Already saved?** If the Sheet already contains this Subject ID, it returns it without writing anything. This covers a retry after a lost response.
    3. **Folder.** It reuses the folder from an earlier partial attempt, which it remembers in Script Properties until the row is written. Otherwise it creates `ATR-XXXXX-XXXXX_YYYYMMDD`.
-   4. **Files.** It creates only the files that are not already in the folder.
+   4. **Files.** It joins each photo's pieces into `front.png`, `left.png` and `right.png` (a single piece is just renamed) and creates only the files that are not already in the folder. If a piece is missing it replies "busy", so the kiosk retries.
    5. **Row.** It appends the row with `Sheets.Spreadsheets.Values.append(..., RAW)`, so nothing is parsed as a formula, a date or a number.
 
    The Subject ID (`ATR-XXXXX-XXXXX`) is derived from the kiosk's random per-visit `submissionKey`, so a retry always gets the same ID. It has 10 random characters, so two participants sharing one is vanishingly unlikely; the key itself is not stored.
@@ -204,7 +206,7 @@ All tunables live in this one file:
 
 - Consent version, contact email and retention period
 - Idle and reset timers
-- Camera constraints and JPEG settings
+- Camera constraints, photo size and format (`IMAGE`: 1920×1080 PNG) and preview zoom (`PREVIEW`)
 - Check thresholds (brightness, sharpness, motion, face size and centring)
 - The shot list and its head-turn directions
 - `ENABLE_VIDEO` and the video bitrate cap
@@ -246,7 +248,7 @@ All UI copy is in `lib/strings.ts`. The Hindi table is type-checked against the 
 
 Nothing is detected or checked automatically. The oval and turn arrows are a positioning guide, and mask, glasses, cap and hair are shown as Do/Don't instructions beside the camera; the participant reviews each photo and can retake it.
 - [ ] Backgrounding the tab and returning: the camera resumes.
-- [ ] Captured JPEGs are 1280 px or less on the long edge, roughly 400 KB or under, and **not** mirrored. Check the Drive file.
+- [ ] All three Drive photos are PNG, exactly 1920×1080, and **not** mirrored. No leftover `.part` files remain in the folder.
 
 **Performance and security**
 - [ ] Chrome DevTools: CPU 4× slowdown and network "Slow 3G". The flow is usable, the countdown is accurate and the progress bar moves.
@@ -260,6 +262,7 @@ Nothing is detected or checked automatically. The oval and turn arrows are a pos
 app/
   layout.tsx, page.tsx, globals.css, icon.svg
   api/submit/route.ts      validation, abuse guards, row building, hand-off to Apps Script
+  api/submit/photo/route.ts  one ≤4 MB piece of one PNG photo, checked and passed to Apps Script
   api/health/route.ts
 components/
   Kiosk.tsx                flow shell: header, step indicator, language toggle, start-over, idle guard
