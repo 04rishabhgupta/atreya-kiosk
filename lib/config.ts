@@ -23,11 +23,30 @@ export const RELOAD_QUIET_MS = 60_000;
 // Tap Capture, then this many seconds (shown 5-4-3-2-1) to get into position before the photo is taken.
 export const COUNTDOWN_S = 5;
 
+// First choice: the camera's own 1920x1080 mode, required (exact), so the browser can't quietly settle for a
+// smaller mode or another camera. getUserMedia picks whichever connected camera can do it (the kiosk's
+// Logitech C920). resizeMode "none" = real sensor frames, never scaled by the browser. No frame-rate cap: the
+// C920 only offers some rates at 1080p, and a cap could rule its 1080p modes out.
+export const FULL_HD_CONSTRAINTS: MediaStreamConstraints = {
+  audio: false,
+  video: {
+    width: { exact: 1920 },
+    height: { exact: 1080 },
+    frameRate: { ideal: 30 },
+    resizeMode: { exact: "none" },
+  } as MediaTrackConstraints, // resizeMode is missing from TypeScript's DOM types
+};
+
+// If several cameras can do 1080p (e.g. a laptop's own webcam too), use the kiosk's Logitech
+// ("HD Pro Webcam C920 (046d:082d)" on Windows; 046d is Logitech's USB vendor ID).
+export const PREFERRED_CAMERA = /c920|logitech|046d:/i;
+
+// Fallback only, when no connected camera has a 1920x1080 mode: open the best the camera offers rather than
+// no camera at all. Photos are then scaled up to 1920x1080 and the console and ?perf=1 say so.
 export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
     facingMode: "user",
-    // Full HD 16:9, the final photo size, so a capable camera needs no cropping or scaling.
     width: { ideal: 1920 },
     height: { ideal: 1080 },
     aspectRatio: { ideal: 16 / 9 },
@@ -35,8 +54,12 @@ export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   },
 };
 
-// Every final photo: exactly this size, 16:9, lossless PNG. The camera frame is centre-cropped to 16:9 (never
-// stretched) and then scaled. A realistic photo is ~3.5 MB, so photos are uploaded on their own (see LIMITS).
+// Focus, exposure and white balance run on auto for this long after the camera opens, then are locked at the
+// values they settled on, so all three photos are taken with the same settings.
+export const CAMERA_SETTLE_MS = 2000;
+
+// Every final photo: exactly this size, 16:9, lossless PNG. A 1920x1080 camera frame is saved as is, pixel for
+// pixel. A realistic photo is ~3.5 MB, so photos are uploaded on their own (see LIMITS).
 export const IMAGE = {
   width: 1920,
   height: 1080,

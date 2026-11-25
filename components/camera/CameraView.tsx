@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
-import { CAMERA_CONSTRAINTS } from "@/lib/config";
+import { CAMERA_CONSTRAINTS, CAMERA_SETTLE_MS, FULL_HD_CONSTRAINTS, PREFERRED_CAMERA } from "@/lib/config";
+import { perf } from "@/lib/perf";
 import { grabStill, previewZoom, savedBandHeight } from "./checks";
 import { FaceOverlay } from "./FaceOverlay";
 
@@ -25,6 +26,79 @@ function classify(e: unknown): CameraError {
   if (name === "NotFoundError" || name === "OverconstrainedError") return "missing";
   if (name === "NotReadableError" || name === "AbortError") return "busy";
   return "error";
+}
+
+/**
+ * The camera at its native 1920x1080 (see FULL_HD_CONSTRAINTS), preferring the kiosk's Logitech when more than
+ * one camera can do it. Falls back to the best mode available only if no connected camera has 1920x1080.
+ */
+async function openCamera(): Promise<MediaStream> {
+  const md = navigator.mediaDevices;
+  let s: MediaStream;
+  try {
+    s = await md.getUserMedia(FULL_HD_CONSTRAINTS);
+  } catch (e) {
+    if (!(e instanceof DOMException && e.name === "OverconstrainedError")) throw e;
+    console.warn("no connected camera offers 1920x1080; using the best mode available");
+    return md.getUserMedia(CAMERA_CONSTRAINTS);
+  }
+  if (!PREFERRED_CAMERA.test(s.getVideoTracks()[0]?.label ?? "")) {
+    const logitech = (await md.enumerateDevices()).find((d) => d.kind === "videoinput" && PREFERRED_CAMERA.test(d.label));
+    if (logitech) {
+      try {
+        const video = { ...(FULL_HD_CONSTRAINTS.video as MediaTrackConstraints), deviceId: { exact: logitech.deviceId } };
+        const p = await md.getUserMedia({ audio: false, video });
+        s.getTracks().forEach((t) => t.stop());
+        s = p;
+      } catch {
+        // keep the Full HD camera we already have
+      }
+    }
+  }
+  return s;
+}
+
+// Camera controls (Media Capture Image extensions), not yet in TypeScript's DOM types.
+type Controls = { focusMode?: string[]; exposureMode?: string[]; whiteBalanceMode?: string[] };
+type Settings = MediaTrackSettings & {
+  focusMode?: string;
+  focusDistance?: number;
+  exposureMode?: string;
+  exposureTime?: number;
+  whiteBalanceMode?: string;
+  colorTemperature?: number;
+  resizeMode?: string;
+};
+
+const describe = (t: MediaStreamTrack) => {
+  const s = t.getSettings() as Settings;
+  return `${s.width}x${s.height} @${Math.round(s.frameRate ?? 0)}fps resize=${s.resizeMode ?? "?"} · ${t.label || "camera"}`;
+};
+
+/**
+ * Locks focus, exposure and white balance at the values auto mode settled on, then reads the settings back.
+ * Controls the camera or browser doesn't expose are left on auto. Returns what is actually in effect.
+ */
+async function lockControls(t: MediaStreamTrack): Promise<string> {
+  const caps = (t.getCapabilities?.() ?? {}) as Controls;
+  const now = t.getSettings() as Settings;
+  const lock: Record<string, string | number> = {};
+  if (caps.focusMode?.includes("manual") && now.focusDistance !== undefined) Object.assign(lock, { focusMode: "manual", focusDistance: now.focusDistance });
+  if (caps.exposureMode?.includes("manual") && now.exposureTime !== undefined) Object.assign(lock, { exposureMode: "manual", exposureTime: now.exposureTime });
+  if (caps.whiteBalanceMode?.includes("manual") && now.colorTemperature !== undefined) {
+    Object.assign(lock, { whiteBalanceMode: "manual", colorTemperature: now.colorTemperature });
+  }
+  if (Object.keys(lock).length) {
+    try {
+      // Keep the existing constraints (the 1920x1080 mode); applyConstraints replaces the whole set.
+      await t.applyConstraints({ ...t.getConstraints(), advanced: [lock] } as MediaTrackConstraints);
+    } catch {
+      // a control the driver rejects stays on auto
+    }
+  }
+  const s = t.getSettings() as Settings;
+  const state = (mode: string | undefined, value: number | undefined) => (mode ? `${mode}${mode === "manual" ? ` ${value}` : ""}` : "n/a");
+  return `focus ${state(s.focusMode, s.focusDistance)} · exposure ${state(s.exposureMode, s.exposureTime)} · white balance ${state(s.whiteBalanceMode, s.colorTemperature)}`;
 }
 
 /**
@@ -52,13 +126,27 @@ export const CameraView = memo(function CameraView({ ref, turn, showGuide, onErr
   // Camera lifecycle: open on mount, stop every track on unmount.
   useEffect(() => {
     let cancelled = false;
+    let settle = 0;
     const open = async () => {
       if (!window.isSecureContext) return cb.current.onError("insecure");
       if (!navigator.mediaDevices?.getUserMedia) return cb.current.onError("missing");
       try {
-        const s = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS);
+        const s = await openCamera();
         if (cancelled) return s.getTracks().forEach((t) => t.stop());
         streamRef.current = s;
+        const track = s.getVideoTracks()[0];
+        if (track) {
+          perf.video = describe(track);
+          console.info(`camera: ${perf.video}`);
+          window.clearTimeout(settle);
+          settle = window.setTimeout(() => {
+            if (track.readyState !== "live") return;
+            void lockControls(track).then((r) => {
+              perf.check = r;
+              console.info(`camera locked: ${r}`);
+            });
+          }, CAMERA_SETTLE_MS);
+        }
         const v = video.current;
         if (!v) return;
         v.srcObject = s;
@@ -83,6 +171,7 @@ export const CameraView = memo(function CameraView({ ref, turn, showGuide, onErr
 
     return () => {
       cancelled = true;
+      window.clearTimeout(settle);
       document.removeEventListener("visibilitychange", onVis);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;

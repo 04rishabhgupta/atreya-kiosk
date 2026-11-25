@@ -53,20 +53,27 @@ export function cropTo(vw: number, vh: number, aspect: number): { x: number; y: 
 }
 
 /**
- * The final photo: exactly IMAGE.width x IMAGE.height (1920x1080), lossless PNG, un-mirrored. The camera
- * frame is centre-cropped to 16:9 first, then scaled, so proportions are always preserved. A 1080p camera
- * gives a 1:1 copy; a smaller one is scaled up (no extra detail, but the same output size and format).
+ * The final photo: exactly IMAGE.width x IMAGE.height (1920x1080), lossless PNG, un-mirrored. A 1920x1080
+ * camera frame (the normal case, see FULL_HD_CONSTRAINTS) is copied pixel for pixel: no crop, no scaling,
+ * no smoothing. Only in the fallback (no Full HD camera) is the frame centre-cropped to 16:9 and scaled.
  */
 export async function grabStill(video: HTMLVideoElement): Promise<{ blob: Blob; width: number; height: number }> {
   const { width, height, mime } = IMAGE;
-  const src = cropTo(video.videoWidth, video.videoHeight, width / height);
+  const native = video.videoWidth === width && video.videoHeight === height;
   const c = document.createElement("canvas");
   c.width = width;
   c.height = height;
   const g = c.getContext("2d", { alpha: false });
   if (!g) throw new Error("no 2d context");
-  g.imageSmoothingQuality = "high";
-  g.drawImage(video, src.x, src.y, src.w, src.h, 0, 0, width, height);
+  if (native) {
+    g.imageSmoothingEnabled = false;
+    g.drawImage(video, 0, 0);
+  } else {
+    console.warn(`camera frame is ${video.videoWidth}x${video.videoHeight}, not ${width}x${height}: photo is scaled`);
+    const src = cropTo(video.videoWidth, video.videoHeight, width / height);
+    g.imageSmoothingQuality = "high";
+    g.drawImage(video, src.x, src.y, src.w, src.h, 0, 0, width, height);
+  }
   const blob = await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), mime));
   c.width = c.height = 0; // free the backing store now on low-RAM devices
   return { blob, width, height };

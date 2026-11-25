@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { perf } from "@/lib/perf";
 
-/** ?perf=1 only: frame rate, camera-check cost and memory, for checking smoothness on the real kiosk. */
+/** ?perf=1 only: frame rate, memory, and the camera mode and controls actually in effect, for checking the real kiosk. */
 export default function PerfOverlay() {
   const [lines, setLines] = useState<string[]>([]);
 
@@ -20,9 +20,7 @@ export default function PerfOverlay() {
         `fps ${frames}`,
         `chrome ${chrome} · cores ${navigator.hardwareConcurrency ?? "?"}`,
         mem ? `js heap ${Math.round(mem.usedJSHeapSize / 1048576)} MB` : "js heap n/a",
-        perf.video
-          ? `camera ${perf.video} · frame ${perf.sampleMs.toFixed(1)} ms · face ${perf.detectMs.toFixed(1)} ms every ${Math.round(perf.faceEveryMs)} ms`
-          : "camera off",
+        perf.video ? `camera ${perf.video}` : "camera off",
         ...(perf.check ? [perf.check] : []),
       ]);
       frames = 0;
